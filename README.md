@@ -41,13 +41,16 @@
 - Kali Linux or Debian-based system
 - Root privileges required
 - Wireless card supporting monitor mode
+- If any error delete complete folder and install again by quick installation steps then use 
 
-### Quick Install:
+### Quick Install Recommended:
 ```bash
 git clone https://github.com/zerohaven-ops/netstrike
 cd netstrike
 chmod +x install.sh
 sudo ./install.sh
+
+
 Manual Install:
 bash
 # Clone repository
@@ -125,3 +128,5 @@ Contributions for educational and research purposes are welcome. Please ensure a
 This project is licensed for Educational Use Only. Commercial use, modification for malicious purposes, or redistribution without permission is prohibited.
 
 Remember: With great power comes great responsibility. Use this tool wisely and ethically.
+
+REPORT THE ERRORS SO I CAN FIX THEM. USE WITH CAUTION!!!!
