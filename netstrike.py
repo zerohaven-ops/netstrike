@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-NETSTRIKE FRAMEWORK v2.0
+NETSTRIKE FRAMEWORK v2.0 ULTIMATE
 by ZEROHAVEN SECURITY
 Advanced Wireless Penetration Suite
 """
@@ -43,10 +43,11 @@ class NetStrike:
 ║    ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝ ╚═════╝                             ║
 ║                                                                  ║
 ║              🚀 ZEROHAVEN SECURITY PRESENTS                     ║
-║                 N E T S T R I K E   v 2.0                       ║
+║                 N E T S T R I K E   v 2.0 ULTIMATE              ║
 ║           U L T I M A T E   W I R E L E S S   S U I T E         ║
 ║               C O M P L E T E   A N O N Y M I T Y               ║
 ║                    N U C L E A R   P O W E R                    ║
+║                    R O U T E R   D E S T R O Y E R              ║
 ║                                                                  ║
 ╚══════════════════════════════════════════════════════════════════╝
 \033[0m
@@ -69,64 +70,36 @@ class NetStrike:
         while True:
             self.display_banner()
             print("\033[1;31m╔══════════════════════════════════════════════════════════════════╗\033[0m")
-            print("\033[1;31m║                  🚀 NETSTRIKE MAIN MENU                         ║\033[0m")
+            print("\033[1;31m║                  🚀 NETSTRIKE ULTIMATE MENU                     ║\033[0m")
             print("\033[1;31m╠══════════════════════════════════════════════════════════════════╣\033[0m")
             print("\033[1;31m║                                                                  ║\033[0m")
-            print("\033[1;31m║ \033[1;33m1\033[0m) \033[1;31m💣 FREEZE WI-FI & BLUETOOTH\033[0m  - Nuclear destruction         \033[1;31m║\033[0m")
-            print("\033[1;31m║ \033[1;33m2\033[0m) \033[1;36m🔓 CRACK WI-FI\033[0m              - Password extraction         \033[1;31m║\033[0m")
-            print("\033[1;31m║ \033[1;33m3\033[0m) \033[1;34m📡 NETWORK SCANNER\033[0m          - Advanced detection         \033[1;31m║\033[0m")
-            print("\033[1;31m║ \033[1;33m4\033[0m) \033[1;35m👥 EVIL TWIN ATTACK\033[0m         - Rogue access point         \033[1;31m║\033[0m")
-            print("\033[1;31m║ \033[1;33m5\033[0m) \033[1;32m🚪 EXIT & CLEAN\033[0m             - No-existence mode          \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m1\033[0m) \033[1;31m💀 ULTRA MASS DESTRUCTION\033[0m    - Total WiFi annihilation     \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m2\033[0m) \033[1;31m💣 ROUTER DESTROYER\033[0m         - Permanent router damage     \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m3\033[0m) \033[1;36m🔓 CRACK WI-FI\033[0m              - Password extraction         \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m4\033[0m) \033[1;35m👥 ADVANCED EVIL TWIN\033[0m       - Perfect replica + capture  \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m5\033[0m) \033[1;34m📡 NETWORK SCANNER\033[0m          - Advanced detection         \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m6\033[0m) \033[1;32m🚪 EXIT & CLEAN\033[0m             - No-existence mode          \033[1;31m║\033[0m")
             print("\033[1;31m║                                                                  ║\033[0m")
             print("\033[1;31m╚══════════════════════════════════════════════════════════════════╝\033[0m")
+            print("\033[1;33m[💡] TIP: Press Ctrl+C during attacks to stop current operation only\033[0m")
             
             choice = input("\n\033[1;33m[?] SELECT NETSTRIKE OPTION: \033[0m").strip()
             
             if choice == "1":
-                self.freeze_menu()
+                self.attacker.ultra_mass_destruction()
             elif choice == "2":
-                self.crack_menu()
+                self.attacker.router_destroyer()
             elif choice == "3":
-                self.scan_menu()
+                self.crack_menu()
             elif choice == "4":
-                self.attacker.evil_twin_attack()
+                self.attacker.advanced_evil_twin()
             elif choice == "5":
+                self.scan_menu()
+            elif choice == "6":
                 self.cleanup()
             else:
                 print("\033[1;31m[✘] INVALID OPTION\033[0m")
                 input("\033[1;33m[!] PRESS ENTER TO CONTINUE...\033[0m")
-
-    def freeze_menu(self):
-        while True:
-            self.display_banner()
-            print("\033[1;31m╔══════════════════════════════════════════════════════════════════╗\033[0m")
-            print("\033[1;31m║                  ☢️  NETSTRIKE FREEZE WEAPON                    ║\033[0m")
-            print("\033[1;31m╠══════════════════════════════════════════════════════════════════╣\033[0m")
-            print("\033[1;31m║                                                                  ║\033[0m")
-            print("\033[1;31m║ \033[1;33m1\033[0m) \033[1;31m💣 SINGLE TARGET DESTRUCTION\033[0m  - Annihilate one network     \033[1;31m║\033[0m")
-            print("\033[1;31m║ \033[1;33m2\033[0m) \033[1;31m☢️  MASS NETWORK DESTRUCTION\033[0m   - Destroy all networks       \033[1;31m║\033[0m")
-            print("\033[1;31m║ \033[1;33m3\033[0m) \033[1;31m📱 BLUETOOTH ANNIHILATION\033[0m     - Destroy Bluetooth devices  \033[1;31m║\033[0m")
-            print("\033[1;31m║ \033[1;33m4\033[0m) \033[1;35m👥 EVIL TWIN ATTACK\033[0m           - Rogue access point         \033[1;31m║\033[0m")
-            print("\033[1;31m║ \033[1;33m5\033[0m) \033[1;32m↩️  BACK TO MAIN MENU\033[0m                                   \033[1;31m║\033[0m")
-            print("\033[1;31m║                                                                  ║\033[0m")
-            print("\033[1;31m╚══════════════════════════════════════════════════════════════════╝\033[0m")
-            
-            choice = input("\n\033[1;33m[?] SELECT WEAPON: \033[0m").strip()
-            
-            if choice == "1":
-                self.attacker.single_target_attack()
-            elif choice == "2":
-                self.attacker.mass_destruction()
-            elif choice == "3":
-                self.attacker.bluetooth_attack()
-            elif choice == "4":
-                self.attacker.evil_twin_attack()
-            elif choice == "5":
-                break
-            else:
-                print("\033[1;31m[✘] INVALID SELECTION\033[0m")
-            
-            input("\n\033[1;33m[!] PRESS ENTER TO CONTINUE...\033[0m")
 
     def crack_menu(self):
         while True:
@@ -147,7 +120,7 @@ class NetStrike:
             if choice == "1":
                 self.cracker.auto_crack_attack()
             elif choice == "2":
-                self.cracker.handshake_capture_auto(None)  # Will prompt for target
+                self.cracker.handshake_capture_auto(None)
             elif choice == "3":
                 self.cracker.wps_pin_attack()
             elif choice == "4":
@@ -196,10 +169,11 @@ class NetStrike:
 
     def run(self):
         try:
-            # Initialization
-            signal.signal(signal.SIGINT, lambda s, f: self.cleanup())
+            # Set up signal handler
+            signal.signal(signal.SIGINT, self.core.signal_handler)
             
-            print("\033[1;31m[☢️] INITIALIZING NETSTRIKE FRAMEWORK...\033[0m")
+            # Initialization
+            print("\033[1;31m[☢️] INITIALIZING NETSTRIKE FRAMEWORK ULTIMATE...\033[0m")
             self.hacker_animation()
             
             # Check root and install tools
@@ -216,9 +190,10 @@ class NetStrike:
             
             if self.core.setup_monitor_mode():
                 self.core.start_nuclear_spoofing()
-                print("\033[1;32m[✓] NETSTRIKE FRAMEWORK READY FOR DEPLOYMENT\033[0m")
+                print("\033[1;32m[✓] NETSTRIKE FRAMEWORK ULTIMATE READY\033[0m")
                 print("\033[1;32m[✓] ANONYMITY MODE: ACTIVE\033[0m")
                 print(f"\033[1;32m[✓] MONITOR MODE: {self.core.mon_interface}\033[0m")
+                print("\033[1;32m[✓] ULTRA DESTRUCTION WEAPONS: ARMED\033[0m")
                 self.main_menu()
             else:
                 print("\033[1;31m[✘] NETSTRIKE DEPLOYMENT FAILED\033[0m")
