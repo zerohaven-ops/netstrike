@@ -170,6 +170,11 @@ class NetStrike:
             if not self.core.check_root():
                 return
             
+            # Select wireless interface
+            if not self.core.select_interface():
+                print("\033[1;31m[✘] NO INTERFACE SELECTED - EXITING\033[0m")
+                return
+            
             self.installer.install_required_tools()
             self.core.save_original_config()
             
