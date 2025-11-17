@@ -4,6 +4,7 @@ import os
 import time
 import subprocess
 import threading
+import csv
 from typing import Dict, List
 
 class NetworkScanner:
@@ -14,8 +15,12 @@ class NetworkScanner:
         self.scanning = False
 
     def wifi_scan(self, duration=15):
-        """Perform WiFi network scan"""
+        """Perform WiFi network scan with better error handling"""
         print("\033[1;33m[!] INITIATING NETSTRIKE SCAN...\033[0m")
+        
+        if not self.core.mon_interface:
+            print("\033[1;31m[✘] NO MONITOR INTERFACE AVAILABLE\033[0m")
+            return False
         
         scan_file = "/tmp/netstrike_scan"
         
@@ -23,67 +28,101 @@ class NetworkScanner:
         self.networks = {}
         
         # Remove old scan files
-        subprocess.run(f"rm -f {scan_file}*", shell=True)
+        subprocess.run(f"rm -f {scan_file}* 2>/dev/null", shell=True)
         
-        print("\033[1;36m[→] SCANNING FOR 15 SECONDS...\033[0m")
+        print(f"\033[1;36m[→] SCANNING FOR {duration} SECONDS ON {self.core.mon_interface}...\033[0m")
         
-        # Start airodump-ng scan
-        scan_process = self.core.run_command(
-            f"timeout {duration}s airodump-ng {self.core.mon_interface} --output-format csv -w {scan_file}",
-            background=True
-        )
+        try:
+            # Start airodump-ng scan with better parameters
+            scan_process = self.core.run_command(
+                f"timeout {duration}s airodump-ng {self.core.mon_interface} --output-format csv -w {scan_file} --ignore-negative-one",
+                background=True
+            )
+            
+            # Show progress animation
+            for i in range(duration):
+                print(f"\033[1;36m[⌛] SCANNING... {i+1}/{duration} SECONDS\033[0m", end='\r')
+                time.sleep(1)
+            print()
+            
+            # Wait for process to finish
+            if scan_process:
+                scan_process.wait()
+            
+            # Check if scan was successful
+            csv_file = f"{scan_file}-01.csv"
+            if os.path.exists(csv_file) and os.path.getsize(csv_file) > 100:  # At least 100 bytes
+                print("\033[1;32m[✓] SCAN COMPLETED SUCCESSFULLY\033[0m")
+                return self.parse_scan_results(csv_file)
+            else:
+                print("\033[1;31m[✘] SCAN FAILED - NO NETWORKS DETECTED OR FILE CORRUPTED\033[0m")
+                # Try manual scan as fallback
+                return self.manual_scan(duration)
+                
+        except Exception as e:
+            print(f"\033[1;31m[✘] SCAN ERROR: {e}\033[0m")
+            return False
+
+    def manual_scan(self, duration=10):
+        """Manual scan as fallback when CSV parsing fails"""
+        print("\033[1;33m[!] TRYING MANUAL SCAN...\033[0m")
         
-        # Show progress
-        for i in range(duration):
-            print(f"\033[1;36m[⌛] SCANNING... {i+1}/{duration} SECONDS\033[0m", end='\r')
-            time.sleep(1)
-        print()
-        
-        # Wait for process to finish
-        if scan_process:
-            scan_process.wait()
-        
-        # Check if scan was successful
-        if os.path.exists(f"{scan_file}-01.csv") and os.path.getsize(f"{scan_file}-01.csv") > 0:
-            print("\033[1;32m[✓] SCAN COMPLETED SUCCESSFULLY\033[0m")
-            return self.parse_scan_results(f"{scan_file}-01.csv")
-        else:
-            print("\033[1;31m[✘] SCAN FAILED - NO NETWORKS DETECTED\033[0m")
+        try:
+            # Run airodump-ng and capture output directly
+            result = self.core.run_command(f"timeout {duration}s airodump-ng {self.core.mon_interface} --output-format csv")
+            
+            if result and result.stdout:
+                lines = result.stdout.split('\n')
+                return self.parse_manual_output(lines)
+            return False
+            
+        except Exception as e:
+            print(f"\033[1;31m[✘] MANUAL SCAN FAILED: {e}\033[0m")
             return False
 
     def parse_scan_results(self, scan_file):
-        """Parse airodump-ng CSV results"""
+        """Parse airodump-ng CSV results with better error handling"""
         try:
-            with open(scan_file, 'r', errors='ignore') as f:
-                lines = f.readlines()
-            
-            networks_section = True
+            self.networks = {}
             count = 0
             
-            for line in lines:
-                line = line.strip()
+            with open(scan_file, 'r', encoding='utf-8', errors='ignore') as f:
+                reader = csv.reader(f)
+                networks_section = True
                 
-                # Skip empty lines and headers
-                if not line or "BSSID" in line or "Station MAC" in line:
-                    if "Station MAC" in line:
+                for row in reader:
+                    if not row:
+                        continue
+                    
+                    # Check if we've reached the client section
+                    if len(row) > 0 and 'Station MAC' in row[0]:
                         networks_section = False
-                    continue
-                
-                if networks_section:
-                    # Parse network line
-                    parts = line.split(',')
-                    if len(parts) >= 14:
-                        bssid = parts[0].strip()
-                        if len(bssid) == 17 and ':' in bssid:  # Valid MAC
-                            channel = parts[3].strip() if parts[3].strip() else "--"
-                            power = parts[8].strip() if parts[8].strip() else "--"
-                            encryption = parts[5].strip() if parts[5].strip() else "OPN"
-                            essid = parts[13].strip()
+                        continue
+                    
+                    if networks_section and len(row) >= 14:
+                        bssid = row[0].strip()
+                        # Validate BSSID format
+                        if len(bssid) == 17 and ':' in bssid and bssid.count(':') == 5:
+                            channel = row[3].strip() if len(row) > 3 and row[3].strip() else "1"
+                            power = row[8].strip() if len(row) > 8 and row[8].strip() else "-1"
+                            encryption = row[5].strip() if len(row) > 5 and row[5].strip() else "OPN"
+                            
+                            # Get ESSID (can be in different positions)
+                            essid = ""
+                            if len(row) > 13:
+                                essid = row[13].strip()
+                            elif len(row) > 1:
+                                essid = row[1].strip()
                             
                             # Clean ESSID
                             essid = essid.replace('"', '').strip()
-                            if not essid or essid == "--":
+                            if not essid:
                                 essid = "HIDDEN_SSID"
+                            
+                            # Clean channel (remove non-numeric)
+                            channel = ''.join(filter(str.isdigit, channel))
+                            if not channel:
+                                channel = "1"
                             
                             count += 1
                             self.networks[count] = {
@@ -94,16 +133,76 @@ class NetworkScanner:
                                 'essid': essid
                             }
             
+            print(f"\033[1;32m[✓] PARSED {count} NETWORKS\033[0m")
             return count > 0
             
         except Exception as e:
-            print(f"\033[1;31m[✘] SCAN PARSING ERROR: {e}\033[0m")
+            print(f"\033[1;31m[✘] CSV PARSING ERROR: {e}\033[0m")
+            return False
+
+    def parse_manual_output(self, lines):
+        """Parse manual output when CSV fails"""
+        try:
+            self.networks = {}
+            count = 0
+            networks_section = True
+            
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                # Skip headers
+                if 'BSSID' in line or 'Station MAC' in line:
+                    if 'Station MAC' in line:
+                        networks_section = False
+                    continue
+                
+                if networks_section:
+                    # Split by commas for CSV-like format
+                    parts = line.split(',')
+                    if len(parts) >= 2:
+                        bssid = parts[0].strip()
+                        if len(bssid) == 17 and ':' in bssid:
+                            # Try to extract basic info
+                            channel = "1"
+                            power = "-1"
+                            encryption = "OPN"
+                            essid = "HIDDEN_SSID"
+                            
+                            # Look for ESSID in later parts
+                            for part in parts[1:]:
+                                part = part.strip()
+                                if part and not any(x in part for x in ['WPA', 'WEP', 'OPN', 'WPS']):
+                                    if len(part) > 1 and not part.isdigit():
+                                        essid = part.replace('"', '').strip()
+                                        break
+                            
+                            count += 1
+                            self.networks[count] = {
+                                'bssid': bssid,
+                                'channel': channel,
+                                'power': power,
+                                'encryption': encryption,
+                                'essid': essid
+                            }
+            
+            print(f"\033[1;32m[✓] MANUAL PARSED {count} NETWORKS\033[0m")
+            return count > 0
+            
+        except Exception as e:
+            print(f"\033[1;31m[✘] MANUAL PARSING ERROR: {e}\033[0m")
             return False
 
     def display_scan_results(self):
         """Display scanned networks in a beautiful format"""
         if not self.networks:
-            print("\033[1;31m[✘] NO NETWORKS FOUND\033[0m")
+            print("\033[1;31m[✘] NO NETWORKS FOUND IN SCAN RESULTS\033[0m")
+            print("\033[1;33m[!] TROUBLESHOOTING:\033[0m")
+            print("  • Check if monitor mode is active")
+            print("  • Ensure wireless adapter supports monitoring")
+            print("  • Try moving closer to networks")
+            print("  • Check if networks are operating on 2.4GHz/5GHz")
             return
         
         print("\033[1;34m┌──────────────────────┬────┬─────┬───────────┬──────────────────────────┐\033[0m")
@@ -137,7 +236,7 @@ class NetworkScanner:
             print(f"\033[1;34m│ \033[1;33m{idx:2d}\033[0m \033[1;32m{bssid}\033[0m \033[1;36m{channel:>3}\033[0m \033[1;31m{power:>3}\033[0m \033[1;34m{enc_display:10}\033[0m {display_name:24} \033[1;34m│\033[0m")
         
         print("\033[1;34m└──────────────────────┴────┴─────┴───────────┴──────────────────────────┘\033[0m")
-        print(f"\033[1;32m[✓] DETECTED {len(self.networks)} NETWORKS\033[0m")
+        print(f"\033[1;32m[✓] DISPLAYING {len(self.networks)} NETWORKS\033[0m")
 
     def select_target(self):
         """Select target from scanned networks"""
@@ -162,19 +261,20 @@ class NetworkScanner:
             return None
 
     def bluetooth_scan(self):
-        """Scan for Bluetooth devices with name resolution"""
+        """Scan for Bluetooth devices with better detection"""
         print("\033[1;33m[!] SCANNING FOR BLUETOOTH DEVICES...\033[0m")
         
         # Ensure Bluetooth is enabled
-        self.core.run_command("systemctl start bluetooth")
-        self.core.run_command("hciconfig hci0 up")
+        self.core.run_command("systemctl start bluetooth >/dev/null 2>&1")
+        self.core.run_command("hciconfig hci0 up >/dev/null 2>&1")
         
         devices = {}
         
         try:
-            # Scan for devices
-            result = self.core.run_command("timeout 30s hcitool scan")
-            if result and result.returncode == 0:
+            # Method 1: Use hcitool scan
+            print("\033[1;36m[→] USING HCITOOL SCAN...\033[0m")
+            result = self.core.run_command("timeout 20s hcitool scan")
+            if result and result.returncode == 0 and len(result.stdout.strip()) > 10:
                 lines = result.stdout.strip().split('\n')[1:]  # Skip header
                 
                 for line in lines:
@@ -182,9 +282,32 @@ class NetworkScanner:
                         parts = line.split()
                         if len(parts) >= 2:
                             mac = parts[0]
-                            name = ' '.join(parts[1:]) if len(parts) > 2 else "Unknown"
+                            name = ' '.join(parts[1:]) if len(parts) > 2 else "Unknown Device"
                             
                             # Get device type
+                            device_type = self.get_bluetooth_device_type(mac, name)
+                            devices[mac] = {
+                                'name': name,
+                                'type': device_type
+                            }
+                
+                if devices:
+                    return devices
+            
+            # Method 2: Use bluetoothctl if hcitool fails
+            print("\033[1;36m[→] TRYING BLUETOOTHCTL SCAN...\033[0m")
+            result = self.core.run_command("timeout 20s bluetoothctl scan on")
+            time.sleep(3)
+            result = self.core.run_command("bluetoothctl devices")
+            
+            if result and result.returncode == 0:
+                lines = result.stdout.strip().split('\n')
+                for line in lines:
+                    if 'Device' in line:
+                        parts = line.split()
+                        if len(parts) >= 3:
+                            mac = parts[1]
+                            name = ' '.join(parts[2:])
                             device_type = self.get_bluetooth_device_type(mac, name)
                             devices[mac] = {
                                 'name': name,
@@ -196,7 +319,14 @@ class NetworkScanner:
         except Exception as e:
             print(f"\033[1;31m[✘] BLUETOOTH SCAN ERROR: {e}\033[0m")
         
-        return {}
+        if not devices:
+            print("\033[1;33m[!] NO BLUETOOTH DEVICES FOUND\033[0m")
+            print("  • Ensure Bluetooth is enabled on target devices")
+            print("  • Make sure devices are discoverable")
+            print("  • Try moving closer to devices")
+            print("  • Check if Bluetooth adapter is working")
+        
+        return devices
 
     def get_bluetooth_device_type(self, mac, name):
         """Determine Bluetooth device type"""
