@@ -29,7 +29,6 @@ class NetworkScanner:
         print(f"\033[1;36m[→] DEPLOYING SCAN DRONE ON {self.core.mon_interface}...\033[0m")
         print(f"\033[1;36m[⌛] SCAN DURATION: {duration} SECONDS\033[0m")
         
-        # Use the working airodump approach
         return self.netstrike_real_time_scan(duration)
 
     def netstrike_real_time_scan(self, duration):
@@ -349,20 +348,22 @@ class NetworkScanner:
             return None
 
     def bluetooth_scan(self):
-        """NetStrike Bluetooth scanning"""
+        """NetStrike Bluetooth scanning with multiple methods"""
         print("\033[1;33m[!] INITIATING BLUETOOTH RECONNAISSANCE...\033[0m")
         
+        # Ensure Bluetooth is enabled
         self.core.run_command("systemctl start bluetooth >/dev/null 2>&1")
         self.core.run_command("hciconfig hci0 up >/dev/null 2>&1")
         
         devices = {}
         
         try:
-            print("\033[1;36m[📡] DEPLOYING BLUETOOTH SENSORS...\033[0m")
-            result = self.core.run_command("timeout 20s hcitool scan")
+            # Method 1: hcitool scan
+            print("\033[1;36m[📡] METHOD 1: HCITOOL SCAN...\033[0m")
+            result = self.core.run_command("timeout 15s hcitool scan")
             
-            if result and result.returncode == 0:
-                lines = result.stdout.strip().split('\n')[1:]
+            if result and result.returncode == 0 and len(result.stdout.strip()) > 10:
+                lines = result.stdout.strip().split('\n')[1:]  # Skip header
                 
                 for line in lines:
                     if line.strip():
@@ -374,18 +375,78 @@ class NetworkScanner:
                             devices[mac] = {'name': name, 'type': device_type}
                 
                 if devices:
-                    print(f"\033[1;32m[✓] BLUETOOTH TARGETS ACQUIRED: {len(devices)}\033[0m")
+                    print(f"\033[1;32m[✓] HCITOOL FOUND {len(devices)} DEVICES\033[0m")
                     return devices
+
+            # Method 2: bluetoothctl scan
+            print("\033[1;36m[📡] METHOD 2: BLUETOOTHCTL SCAN...\033[0m")
+            self.core.run_command("bluetoothctl scan on >/dev/null 2>&1 &")
+            time.sleep(10)
+            result = self.core.run_command("bluetoothctl devices")
+            self.core.run_command("pkill -f 'bluetoothctl scan'")
+            
+            if result and result.returncode == 0:
+                lines = result.stdout.strip().split('\n')
+                for line in lines:
+                    if 'Device' in line:
+                        parts = line.split()
+                        if len(parts) >= 3:
+                            mac = parts[1]
+                            name = ' '.join(parts[2:])
+                            device_type = self.get_bluetooth_device_type(mac, name)
+                            devices[mac] = {'name': name, 'type': device_type}
+                
+                if devices:
+                    print(f"\033[1;32m[✓] BLUETOOTHCTL FOUND {len(devices)} DEVICES\033[0m")
+                    return devices
+
+            # Method 3: sdptool browse
+            print("\033[1;36m[📡] METHOD 3: ADVANCED SCAN...\033[0m")
+            for mac in list(devices.keys())[:5]:  # Try first 5 devices for services
+                try:
+                    result = self.core.run_command(f"sdptool browse {mac} 2>/dev/null")
+                    if result and "Service Name" in result.stdout:
+                        devices[mac]['services'] = "Multiple Services"
+                except:
+                    pass
                     
         except Exception as e:
             print(f"\033[1;31m[✘] BLUETOOTH RECON FAILED: {e}\033[0m")
         
-        if not devices:
+        if devices:
+            print(f"\033[1;32m[🎯] BLUETOOTH TARGETS ACQUIRED: {len(devices)}\033[0m")
+            return devices
+        else:
             print("\033[1;33m[!] NO BLUETOOTH TARGETS DETECTED\033[0m")
-            print("  • Ensure devices are in discoverable mode")
+            print("  • Ensure Bluetooth is enabled on target devices")
+            print("  • Make sure devices are in discoverable mode")
             print("  • Check Bluetooth adapter functionality")
+            print("  • Try moving closer to target devices")
         
         return devices
+
+    def display_bluetooth_results(self, devices):
+        """Display Bluetooth scan results"""
+        if not devices:
+            print("\033[1;31m[✘] NO BLUETOOTH DEVICES TO DISPLAY\033[0m")
+            return
+        
+        print("\033[1;31m")
+        print("╔══════════════════════════════════════════════════════════════════╗")
+        print("║                   📱 BLUETOOTH TARGET REPORT                    ║")
+        print("╚══════════════════════════════════════════════════════════════════╝")
+        print("\033[0m")
+        
+        print("\033[1;34m┌──────────────────────┬──────────────────┬──────────────────────────────┐\033[0m")
+        print("\033[1;34m│ \033[1;37mMAC Address         TYPE            DEVICE NAME\033[1;34m                   │\033[0m")
+        print("\033[1;34m├──────────────────────┼──────────────────┼──────────────────────────────┤\033[0m")
+        
+        for mac, info in devices.items():
+            device_name = info['name'][:28] + "..." if len(info['name']) > 28 else info['name']
+            print(f"\033[1;34m│ \033[1;32m{mac}\033[0m {info['type']:16} \033[1;37m{device_name:28}\033[1;34m │\033[0m")
+        
+        print("\033[1;34m└──────────────────────┴──────────────────┴──────────────────────────────┘\033[0m")
+        print(f"\033[1;32m[✅] {len(devices)} BLUETOOTH TARGETS READY\033[0m")
 
     def get_bluetooth_device_type(self, mac, name):
         """Classify Bluetooth devices"""
