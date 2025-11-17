@@ -1,182 +1,66 @@
 #!/bin/bash
 
-# NetStrike Framework Installer - Lock-Aware Minimal Installation
-# by ZeroHaven Security
-
-# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-CYAN='\033[0;36m'
 NC='\033[0m'
 
-# Check if dpkg is locked
-check_dpkg_lock() {
-    if [ -f /var/lib/dpkg/lock-frontend ] || [ -f /var/lib/dpkg/lock ] || [ -f /var/lib/apt/lists/lock ]; then
-        return 1
-    fi
+check_lock() {
+    local locks=(/var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock)
+    for l in "${locks[@]}"; do
+        if [ -f "$l" ]; then return 1; fi
+    done
     return 0
 }
 
-# Wait for dpkg lock to be released
-wait_for_dpkg_lock() {
+wait_lock() {
     local timeout=300
-    local start_time=$(date +%s)
-    
-    echo -e "${YELLOW}[!] CHECKING FOR SYSTEM LOCKS...${NC}"
-    
-    while [ $(($(date +%s) - start_time)) -lt $timeout ]; do
-        if check_dpkg_lock; then
-            echo -e "${GREEN}[✓] SYSTEM READY FOR INSTALLATION${NC}"
+    local start=$(date +%s)
+    while [ $(($(date +%s)-start)) -lt $timeout ]; do
+        if check_lock; then
+            echo -e "${GREEN}[✓] SYSTEM READY${NC}"
             return 0
         fi
-        local elapsed=$(($(date +%s) - start_time))
-        local dots=$(printf '%*s' $((elapsed % 4)) | tr ' ' '.')
-        echo -ne "\r${YELLOW}[⌛] WAITING FOR SYSTEM LOCKS${dots} (${elapsed}s)${NC}"
         sleep 2
     done
-    
-    echo -e "\r${RED}[✘] TIMEOUT WAITING FOR SYSTEM LOCKS AFTER ${timeout}s${NC}"
+    echo -e "${RED}[✘] SYSTEM LOCKED - TIMEOUT${NC}"
     return 1
 }
 
-# Simple command runner with timeout
-run_cmd_simple() {
-    local cmd="$1"
-    local msg="$2"
-    local timeout=${3:-60}
-    
-    echo -e "${YELLOW}[→] ${msg}...${NC}"
-    
-    # Check for locks first
-    if ! check_dpkg_lock; then
-        echo -e "${RED}[✘] ${msg} - SYSTEM LOCKED${NC}"
+run_cmd() {
+    local cmd="$1"; local msg="$2"; local t=${3:-120}
+    echo -e "${YELLOW}[→] $msg...${NC}"
+    if ! check_lock; then
+        echo -e "${RED}[✘] $msg - SYSTEM LOCKED${NC}"
         return 1
     fi
-    
-    # Run command with timeout
-    if timeout $timeout bash -c "$cmd" > /dev/null 2>&1; then
-        echo -e "${GREEN}[✓] ${msg} COMPLETED${NC}"
-        return 0
-    else
-        echo -e "${RED}[✘] ${msg} FAILED${NC}"
-        return 1
-    fi
+    timeout $t bash -c "$cmd" > /dev/null 2>&1 && echo -e "${GREEN}[✓] $msg${NC}" || echo -e "${RED}[✘] $msg FAILED${NC}"
 }
 
-# Detect distribution
-detect_distro() {
-    if [ -f "/etc/os-release" ]; then
-        if grep -qi "kali" /etc/os-release; then
-            echo "kali"
-        elif grep -qi "debian" /etc/os-release; then
-            echo "debian" 
-        elif grep -qi "ubuntu" /etc/os-release; then
-            echo "ubuntu"
-        else
-            echo "unknown"
-        fi
-    else
-        echo "unknown"
-    fi
-}
+DISTRO=$(grep -qi "kali" /etc/os-release && echo "kali" || grep -qi "ubuntu" /etc/os-release && echo "ubuntu" || echo "unknown")
+[ "$EUID" -ne 0 ] && echo -e "${RED}[✘] RUN AS ROOT${NC}" && exit 1
+wait_lock || exit 1
 
-DISTRO=$(detect_distro)
+run_cmd "apt update -y || apt-get update -y" "Updating system" 180
 
-echo -e "${BLUE}"
-echo "╔══════════════════════════════════════════════════════════════════╗"
-echo "║                                                                  ║"
-echo "║                   NETSTRIKE FRAMEWORK INSTALLER                  ║"
-echo "║                    LOCK-AWARE MINIMAL INSTALL                    ║"
-echo "║                         DETECTED: ${DISTRO^^}                          ║"
-echo "║                                                                  ║"
-echo "╚══════════════════════════════════════════════════════════════════╝"
-echo -e "${NC}"
-
-# Check root
-if [ "$EUID" -ne 0 ]; then 
-    echo -e "${RED}[✘] PLEASE RUN AS ROOT: sudo ./install.sh${NC}"
-    exit 1
-fi
-
-echo -e "${YELLOW}[!] STARTING MINIMAL INSTALLATION FOR ${DISTRO^^}...${NC}"
-
-# Wait for system locks first
-if ! wait_for_dpkg_lock; then
-    echo -e "${RED}[✘] CANNOT PROCEED - SYSTEM LOCKS HELD${NC}"
-    echo -e "${YELLOW}[💡] TIP: Wait for other package operations to complete${NC}"
-    exit 1
-fi
-
-# Update system (quick check only)
-echo -e "${YELLOW}[!] CHECKING SYSTEM UPDATES...${NC}"
-if run_cmd_simple "apt update" "Checking updates" 30; then
-    echo -e "${GREEN}[✓] SYSTEM READY${NC}"
-else
-    echo -e "${YELLOW}[⚠️] UPDATE CHECK FAILED - CONTINUING ANYWAY${NC}"
-fi
-
-# Kali Linux - Minimal installation (skip most tools as they're pre-installed)
 if [ "$DISTRO" = "kali" ]; then
-    echo -e "${CYAN}[!] KALI DETECTED - MINIMAL INSTALLATION...${NC}"
-    
-    # Only install MDK4 if missing (usually the only missing tool)
-    if ! command -v mdk4 &> /dev/null; then
-        echo -e "${YELLOW}[!] INSTALLING MDK4...${NC}"
-        if run_cmd_simple "apt install -y mdk4" "Installing MDK4" 120; then
-            echo -e "${GREEN}[✓] MDK4 INSTALLED${NC}"
-        else
-            # Try source installation as fallback
-            echo -e "${YELLOW}[!] TRYING MDK4 FROM SOURCE...${NC}"
-            run_cmd_simple "git clone https://github.com/aircrack-ng/mdk4" "Cloning MDK4" 60
-            cd mdk4 && make && make install && cd .. && rm -rf mdk4
-            echo -e "${GREEN}[✓] MDK4 INSTALLED FROM SOURCE${NC}"
-        fi
-    else
-        echo -e "${GREEN}[✓] MDK4 ALREADY INSTALLED${NC}"
-    fi
-
-    # Install Python packages via pip (avoid apt locks)
-    echo -e "${YELLOW}[!] CHECKING PYTHON PACKAGES...${NC}"
-    if python3 -c "import requests" 2>/dev/null && python3 -c "import scapy" 2>/dev/null; then
-        echo -e "${GREEN}[✓] PYTHON PACKAGES ALREADY INSTALLED${NC}"
-    else
-        echo -e "${YELLOW}[!] INSTALLING PYTHON PACKAGES VIA PIP...${NC}"
-        run_cmd_simple "pip3 install requests scapy --break-system-packages --quiet" "Installing Python packages" 60
-    fi
-
+    command -v mdk4 >/dev/null || run_cmd "apt install -y mdk4 || apt-get install -y mdk4" "Installing MDK4" 180
 else
-    # Generic installation for other distros
-    echo -e "${CYAN}[!] ${DISTRO^^} DETECTED - STANDARD INSTALLATION...${NC}"
-    
-    # Install core tools
-    tools=("aircrack-ng" "macchanger" "reaver" "mdk4")
-    for tool in "${tools[@]}"; do
-        if ! command -v "$tool" &> /dev/null; then
-            run_cmd_simple "apt install -y $tool" "Installing $tool" 120
-        else
-            echo -e "${GREEN}[✓] $tool ALREADY INSTALLED${NC}"
-        fi
+    for tool in aircrack-ng macchanger reaver mdk4; do
+        command -v $tool >/dev/null || run_cmd "apt install -y $tool || apt-get install -y $tool" "Installing $tool" 180
     done
-    
-    # Python packages
-    run_cmd_simple "pip3 install requests scapy --break-system-packages --quiet" "Installing Python packages" 60
 fi
 
-# Setup wordlists (no downloads - use existing or create basic)
-echo -e "${YELLOW}[!] SETTING UP WORDLISTS...${NC}"
-mkdir -p /usr/share/wordlists
+for py in requests scapy; do
+    python3 -c "import $py" 2>/dev/null || run_cmd "pip3 install $py --break-system-packages --quiet" "Installing $py" 120
+done
 
-if [ -f "/usr/share/wordlists/rockyou.txt.gz" ] && [ ! -f "/usr/share/wordlists/rockyou.txt" ]; then
-    run_cmd_simple "gzip -dc /usr/share/wordlists/rockyou.txt.gz > /usr/share/wordlists/rockyou.txt" "Extracting rockyou.txt" 30
-    echo -e "${GREEN}[✓] ROCKYOU.TXT EXTRACTED${NC}"
-elif [ -f "/usr/share/wordlists/rockyou.txt" ]; then
-    echo -e "${GREEN}[✓] ROCKYOU.TXT AVAILABLE${NC}"
-else
-    # Create basic wordlist
-    echo -e "${YELLOW}[!] CREATING BASIC WORDLIST...${NC}"
-    cat > /usr/share/wordlists/netstrike_passwords.txt << 'EOF'
+mkdir -p /usr/share/wordlists
+if [ -f /usr/share/wordlists/rockyou.txt.gz ] && [ ! -f /usr/share/wordlists/rockyou.txt ]; then
+    run_cmd "gzip -dc /usr/share/wordlists/rockyou.txt.gz > /usr/share/wordlists/rockyou.txt" "Extracting rockyou.txt" 60
+elif [ ! -f /usr/share/wordlists/rockyou.txt ]; then
+    cat > /usr/share/wordlists/netstrike_passwords.txt <<'EOF'
 123456
 password
 12345678
@@ -201,23 +85,5 @@ EOF
     echo -e "${GREEN}[✓] BASIC WORDLIST CREATED${NC}"
 fi
 
-# Make scripts executable
-echo -e "${YELLOW}[!] SETTING PERMISSIONS...${NC}"
 chmod +x *.py
-echo -e "${GREEN}[✓] PERMISSIONS SET${NC}"
-
-# Final verification
-echo -e "${YELLOW}[!] FINAL VERIFICATION...${NC}"
-if command -v aircrack-ng &> /dev/null && \
-   command -v macchanger &> /dev/null; then
-    echo -e "${GREEN}[✓] CORE FUNCTIONALITY VERIFIED${NC}"
-    echo -e "${GREEN}[✓] NETSTRIKE FRAMEWORK READY!${NC}"
-else
-    echo -e "${RED}[✘] CORE TOOLS MISSING${NC}"
-    echo -e "${YELLOW}[⚠️] INSTALLATION MAY BE INCOMPLETE${NC}"
-fi
-
-echo ""
-echo -e "${CYAN}[💡] TO START: sudo python3 netstrike.py${NC}"
-echo -e "${YELLOW}[⚠️] IMPORTANT: Use only for authorized testing!${NC}"
-echo -e "${GREEN}[🎯] ULTIMATE FEATURES: Mass Destruction, Router Destroyer, Evil Twin${NC}"
+echo -e "${GREEN}[✓] INSTALLATION COMPLETE${NC}"
