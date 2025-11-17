@@ -16,13 +16,14 @@ class NetStrikeCore:
         self.mac_spoof_thread = None
         self.ip_spoof_thread = None
         self.spoofing_active = False
+        self.attack_processes = []
         
     def check_root(self):
         """Check if running as root"""
         if os.geteuid() != 0:
             print("\033[1;31m[✘] NETSTRIKE FRAMEWORK REQUIRES ROOT PRIVILEGES\033[0m")
             return False
-        print("\033[1;32m[✓] ROOT ACCESS CONFIRMED\033[0m")
+        print("\033[1;32m[✓] ROOT PRIVILEGES CONFIRMED\033[0m")
         return True
 
     def run_command(self, command, background=False):
@@ -34,7 +35,7 @@ class NetStrikeCore:
                 result = subprocess.run(command, shell=True, capture_output=True, text=True)
                 return result
         except Exception as e:
-            print(f"\033[1;31m[✘] COMMAND FAILED: {command}\033[0m")
+            print(f"\033[1;31m[✘] COMMAND FAILED: {e}\033[0m")
             return None
 
     def detect_wireless_interfaces(self):
@@ -83,7 +84,7 @@ class NetStrikeCore:
             
             if 0 <= idx < len(interfaces):
                 self.interface = interfaces[idx]
-                print(f"\033[1;32m[✓] SELECTED INTERFACE: {self.interface}\033[0m")
+                print(f"\033[1;32m[✓] INTERFACE SELECTED: {self.interface}\033[0m")
                 return True
             else:
                 print("\033[1;31m[✘] INVALID SELECTION\033[0m")
@@ -152,35 +153,17 @@ class NetStrikeCore:
                 if result and "Mode:Monitor" in result.stdout:
                     self.mon_interface = self.interface
                 else:
-                    print("\033[1;31m[✘] MONITOR MODE FAILED - NO MONITOR INTERFACE FOUND\033[0m")
+                    print("\033[1;31m[✘] MONITOR MODE FAILED\033[0m")
                     return False
         
         # Verify monitor mode
         result = self.run_command(f"iwconfig {self.mon_interface} 2>/dev/null")
         if result and "Mode:Monitor" in result.stdout:
-            print(f"\033[1;32m[✓] MONITOR MODE: {self.mon_interface}\033[0m")
+            print(f"\033[1;32m[✓] MONITOR MODE ACTIVATED: {self.mon_interface}\033[0m")
             return True
         else:
             print("\033[1;31m[✘] MONITOR MODE FAILED\033[0m")
             return False
-
-    def spoof_mac(self):
-        """MAC spoofing thread"""
-        count = 0
-        while self.spoofing_active:
-            time.sleep(300)  # 5 minutes
-            self.run_command(f"ip link set {self.mon_interface} down >/dev/null 2>&1")
-            if self.run_command(f"macchanger -r {self.mon_interface} >/dev/null 2>&1"):
-                self.run_command(f"ip link set {self.mon_interface} up >/dev/null 2>&1")
-                count += 1
-                print(f"\033[1;32m[✓] MAC CYCLED #{count}\033[0m")
-
-    def spoof_ip(self):
-        """IP spoofing thread"""
-        while self.spoofing_active:
-            time.sleep(300)  # 5 minutes
-            self.run_command("systemctl restart NetworkManager >/dev/null 2>&1")
-            print("\033[1;32m[✓] NETWORK CONFIG REFRESHED\033[0m")
 
     def start_nuclear_spoofing(self):
         """Start MAC and IP spoofing"""
@@ -197,7 +180,25 @@ class NetStrikeCore:
         self.mac_spoof_thread.start()
         self.ip_spoof_thread.start()
         
-        print("\033[1;32m[✓] NUCLEAR ANONYMITY ACTIVE\033[0m")
+        print("\033[1;32m[✓] NUCLEAR ANONYMITY ACTIVATED\033[0m")
+
+    def spoof_mac(self):
+        """MAC spoofing thread"""
+        count = 0
+        while self.spoofing_active:
+            time.sleep(300)  # 5 minutes
+            self.run_command(f"ip link set {self.mon_interface} down >/dev/null 2>&1")
+            if self.run_command(f"macchanger -r {self.mon_interface} >/dev/null 2>&1"):
+                self.run_command(f"ip link set {self.mon_interface} up >/dev/null 2>&1")
+                count += 1
+                print(f"\033[1;32m[✓] MAC ADDRESS CYCLED #{count}\033[0m")
+
+    def spoof_ip(self):
+        """IP spoofing thread"""
+        while self.spoofing_active:
+            time.sleep(300)  # 5 minutes
+            self.run_command("systemctl restart NetworkManager >/dev/null 2>&1")
+            print("\033[1;32m[✓] NETWORK CONFIGURATION REFRESHED\033[0m")
 
     def stop_nuclear_spoofing(self):
         """Stop spoofing threads"""
@@ -213,14 +214,38 @@ class NetStrikeCore:
             print("\033[1;33m[!] DEACTIVATING MONITOR MODE...\033[0m")
             self.run_command(f"airmon-ng stop {self.mon_interface} >/dev/null 2>&1")
             self.run_command("systemctl restart NetworkManager >/dev/null 2>&1")
-            print("\033[1;32m[✓] MONITOR MODE STOPPED\033[0m")
+            print("\033[1;32m[✓] MONITOR MODE DEACTIVATED\033[0m")
+
+    def add_attack_process(self, process):
+        """Add attack process to management list"""
+        self.attack_processes.append(process)
+
+    def stop_all_attacks(self):
+        """Stop all running attacks"""
+        print("\033[1;33m[!] TERMINATING ALL ATTACKS...\033[0m")
+        
+        # Kill all attack processes
+        for process in self.attack_processes:
+            if process and process.poll() is None:
+                process.terminate()
+                process.wait(timeout=2)
+        
+        self.attack_processes = []
+        
+        # Kill any remaining attack processes
+        self.run_command("killall airodump-ng aireplay-ng mdk4 xterm reaver bully wash hcitool l2ping 2>/dev/null")
+        self.run_command("pkill -f 'mdk4|aireplay-ng|airodump-ng' 2>/dev/null")
+        
+        print("\033[1;32m[✓] ALL ATTACKS TERMINATED\033[0m")
 
     def nuclear_cleanup(self):
         """Complete system cleanup"""
+        print("\033[1;31m[☢️] INITIATING NO-EXISTENCE PROTOCOL...\033[0m")
+        
         messages = [
             "🧹 TERMINATING ACTIVE SESSIONS...",
             "📁 CLEANING SYSTEM LOGS...",
-            "🔄 RESTORING ORIGINAL CONFIG...",
+            "🔄 RESTORING ORIGINAL CONFIGURATION...",
             "🚮 REMOVING TEMPORARY FILES...",
             "🔒 WIPING DIGITAL TRACES...",
             "✅ NO EXISTENCE MODE ACTIVATED"
@@ -230,8 +255,8 @@ class NetStrikeCore:
             print(f"\033[1;35m[☢️] \033[1;36m{msg}\033[0m")
             time.sleep(1)
         
-        # Terminate all attacks
-        self.run_command("killall airodump-ng aireplay-ng mdk4 xterm reaver wash hcitool l2ping 2>/dev/null")
+        # Stop all attacks
+        self.stop_all_attacks()
         
         # Stop spoofing
         self.stop_nuclear_spoofing()
@@ -256,5 +281,5 @@ class NetStrikeCore:
         self.run_command("systemctl restart bluetooth >/dev/null 2>&1")
         
         print("\033[1;32m[✓] NO-EXISTENCE PROTOCOL COMPLETE\033[0m")
-        print("\033[1;32m[✓] ALL TRACES ELIMINATED - MISSION ACCOMPLISHED\033[0m")
+        print("\033[1;32m[✓] ALL DIGITAL TRACES ELIMINATED - MISSION ACCOMPLISHED\033[0m")
         sys.exit(0)
