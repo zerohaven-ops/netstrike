@@ -5,6 +5,7 @@ import sys
 import time
 import subprocess
 import threading
+import signal
 from typing import Dict, List
 
 class NetStrikeCore:
@@ -17,6 +18,7 @@ class NetStrikeCore:
         self.ip_spoof_thread = None
         self.spoofing_active = False
         self.attack_processes = []
+        self.current_operation = None
         
     def check_root(self):
         """Check if running as root"""
@@ -25,6 +27,14 @@ class NetStrikeCore:
             return False
         print("\033[1;32m[✓] ROOT PRIVILEGES CONFIRMED\033[0m")
         return True
+
+    def set_current_operation(self, operation):
+        """Set current operation for signal handling"""
+        self.current_operation = operation
+
+    def clear_current_operation(self):
+        """Clear current operation"""
+        self.current_operation = None
 
     def run_command(self, command, background=False):
         """Execute system command with error handling"""
@@ -234,9 +244,19 @@ class NetStrikeCore:
         
         # Kill any remaining attack processes
         self.run_command("killall airodump-ng aireplay-ng mdk4 xterm reaver bully wash hcitool l2ping 2>/dev/null")
-        self.run_command("pkill -f 'mdk4|aireplay-ng|airodump-ng' 2>/dev/null")
+        self.run_command("pkill -f 'mdk4|aireplay-ng|airodump-ng|hostapd|dnsmasq' 2>/dev/null")
         
         print("\033[1;32m[✓] ALL ATTACKS TERMINATED\033[0m")
+
+    def signal_handler(self, sig, frame):
+        """Handle Ctrl+C signal gracefully"""
+        if self.current_operation:
+            print(f"\n\033[1;33m[!] STOPPING CURRENT OPERATION: {self.current_operation}\033[0m")
+            self.stop_all_attacks()
+            self.clear_current_operation()
+        else:
+            print("\n\033[1;33m[!] EXITING NETSTRIKE FRAMEWORK...\033[0m")
+            self.nuclear_cleanup()
 
     def nuclear_cleanup(self):
         """Complete system cleanup"""
@@ -280,6 +300,9 @@ class NetStrikeCore:
         self.run_command("systemctl restart NetworkManager >/dev/null 2>&1")
         self.run_command("systemctl restart bluetooth >/dev/null 2>&1")
         
+        print("\033[1;32m[✓] NO-EXISTENCE PROTOCOL COMPLETE\033[0m")
+        print("\033[1;32m[✓] ALL DIGITAL TRACES ELIMINATED - MISSION ACCOMPLISHED\033[0m")
+        sys.exit(0)
         print("\033[1;32m[✓] NO-EXISTENCE PROTOCOL COMPLETE\033[0m")
         print("\033[1;32m[✓] ALL DIGITAL TRACES ELIMINATED - MISSION ACCOMPLISHED\033[0m")
         sys.exit(0)
