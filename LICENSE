@@ -1,2 +1,24 @@
 EDUCATIONAL USE LICENSE
-For authorized security testing only
+
+Copyright (c) 2024 ZeroHaven Security
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to use
+the Software for educational and authorized security testing purposes only.
+
+RESTRICTIONS:
+- The Software may not be used for any illegal or unauthorized activities
+- The Software may not be used to disrupt or damage networks without explicit permission
+- The Software may not be modified for malicious purposes
+- The Software may not be sold or used for commercial purposes
+- The Software may not be redistributed without proper attribution
+
+DISCLAIMER:
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. IN NO EVENT
+SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM OR DAMAGES ARISING FROM THE USE
+OF THIS SOFTWARE.
+
+By using this Software, you agree to use it only for legitimate security
+research, educational purposes, or authorized penetration testing.
+
+Violation of these terms may result in legal action and termination of access.
