@@ -11,28 +11,36 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Animation function
-show_animation() {
-    local frames=("▰▰▰▰▰▰▰▰" "▰▰▰▰▰▰▰▱" "▰▰▰▰▰▰▱▱" "▰▰▰▰▰▱▱▱" "▰▰▰▰▱▱▱▱" "▰▰▰▱▱▱▱▱" "▰▰▱▱▱▱▱▱" "▰▱▱▱▱▱▱▱" "▱▱▱▱▱▱▱▱")
-    for frame in "${frames[@]}"; do
-        echo -ne "\r${CYAN}[${frame}] ${YELLOW}DEPLOYING NETSTRIKE...${NC}"
-        sleep 0.1
-    done
-    echo -ne "\r${GREEN}[▰▰▰▰▰▰▰▰] ${GREEN}DEPLOYMENT COMPLETE!${NC}\n"
+# Function to check if command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Function to install package with timeout
+install_package() {
+    local package=$1
+    if dpkg -l | grep -q "^ii  $package "; then
+        echo -e "${GREEN}[✓] $package ALREADY INSTALLED${NC}"
+        return 0
+    fi
+    
+    echo -e "${YELLOW}[!] INSTALLING $package...${NC}"
+    timeout 300 apt install -y "$package" > /dev/null 2>&1
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}[✓] $package INSTALLED${NC}"
+        return 0
+    else
+        echo -e "${RED}[✘] $package INSTALLATION FAILED${NC}"
+        return 1
+    fi
 }
 
 echo -e "${BLUE}"
 echo "╔══════════════════════════════════════════════════════════════════╗"
 echo "║                                                                  ║"
-echo "║    ███╗   ██╗███████╗████████╗███████╗████████╗██████╗ ██╗██╗   ║"
-echo "║    ████╗  ██║██╔════╝╚══██╔══╝██╔════╝╚══██╔══╝██╔══██╗██║██║   ║"
-echo "║    ██╔██╗ ██║█████╗     ██║   █████╗     ██║   ██████╔╝██║██║   ║"
-echo "║    ██║╚██╗██║██╔══╝     ██║   ██╔══╝     ██║   ██╔══██╗██║██║   ║"
-echo "║    ██║ ╚████║███████╗   ██║   ███████╗   ██║   ██║  ██║██║███████╗"
-echo "║    ╚═╝  ╚═══╝╚══════╝   ╚═╝   ╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝╚══════╝"
-echo "║                                                                  ║"
-echo "║                   INSTALLATION SCRIPT v2.0                       ║"
-echo "║                  ADVANCED DEPLOYMENT SYSTEM                      ║"
+echo "║                   NETSTRIKE FRAMEWORK INSTALLER                  ║"
+echo "║                         ULTIMATE EDITION                         ║"
 echo "║                                                                  ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
@@ -55,160 +63,199 @@ else
     exit 1
 fi
 
+# Install essential dependencies
+echo -e "${YELLOW}[!] INSTALLING ESSENTIAL DEPENDENCIES...${NC}"
+essential_deps=("git" "build-essential" "libssl-dev" "zlib1g-dev" "libpcap-dev")
+for dep in "${essential_deps[@]}"; do
+    install_package "$dep"
+done
+
 # Install Python3 if not present
-if ! command -v python3 &> /dev/null; then
+if ! command_exists python3; then
     echo -e "${YELLOW}[!] INSTALLING PYTHON3...${NC}"
-    apt install -y python3 > /dev/null 2>&1
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}[✓] PYTHON3 INSTALLED${NC}"
-    else
-        echo -e "${RED}[✘] PYTHON3 INSTALLATION FAILED${NC}"
-    fi
+    install_package "python3"
 fi
 
 # Install pip if not present
-if ! command -v pip3 &> /dev/null; then
+if ! command_exists pip3; then
     echo -e "${YELLOW}[!] INSTALLING PYTHON3-PIP...${NC}"
-    apt install -y python3-pip > /dev/null 2>&1
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}[✓] PYTHON3-PIP INSTALLED${NC}"
-    else
-        echo -e "${RED}[✘] PIP INSTALLATION FAILED${NC}"
-    fi
+    install_package "python3-pip"
 fi
 
-# Install required tools
-echo -e "${YELLOW}[!] INSTALLING REQUIRED TOOLS...${NC}"
+# Install core WiFi tools
+echo -e "${YELLOW}[!] INSTALLING CORE WI-FI TOOLS...${NC}"
+core_tools=("aircrack-ng" "macchanger" "wireless-tools" "iw" "iproute2" "net-tools")
+for tool in "${core_tools[@]}"; do
+    install_package "$tool"
+done
 
-# WiFi tools
-wifi_tools=("aircrack-ng" "macchanger" "xterm" "reaver" "bully" "wash" "wireless-tools" "hostapd" "dnsmasq")
-for tool in "${wifi_tools[@]}"; do
-    if ! dpkg -l | grep -q $tool; then
-        echo -e "${YELLOW}[!] INSTALLING $tool...${NC}"
-        apt install -y $tool > /dev/null 2>&1
-        if [ $? -eq 0 ]; then
-            echo -e "${GREEN}[✓] $tool INSTALLED${NC}"
-        else
-            echo -e "${RED}[✘] $tool INSTALLATION FAILED${NC}"
+# Install WPS tools (reaver and bully instead of wash)
+echo -e "${YELLOW}[!] INSTALLING WPS ATTACK TOOLS...${NC}"
+wps_tools=("reaver" "bully")
+for tool in "${wps_tools[@]}"; do
+    if ! install_package "$tool"; then
+        echo -e "${YELLOW}[!] ATTEMPTING TO INSTALL $tool FROM SOURCE...${NC}"
+        
+        if [ "$tool" == "reaver" ]; then
+            # Install reaver from source
+            git clone https://github.com/t6x/reaver-wps-fork-t6x.git > /dev/null 2>&1
+            if [ $? -eq 0 ]; then
+                cd reaver-wps-fork-t6x/src
+                ./configure > /dev/null 2>&1
+                make > /dev/null 2>&1
+                make install > /dev/null 2>&1
+                cd ../..
+                rm -rf reaver-wps-fork-t6x
+                echo -e "${GREEN}[✓] REAVER INSTALLED FROM SOURCE${NC}"
+            fi
+        elif [ "$tool" == "bully" ]; then
+            # Install bully from source
+            git clone https://github.com/aanarchyy/bully.git > /dev/null 2>&1
+            if [ $? -eq 0 ]; then
+                cd bully/src
+                make > /dev/null 2>&1
+                make install > /dev/null 2>&1
+                cd ../..
+                rm -rf bully
+                echo -e "${GREEN}[✓] BULLY INSTALLED FROM SOURCE${NC}"
+            fi
         fi
-    else
-        echo -e "${GREEN}[✓] $tool ALREADY INSTALLED${NC}"
     fi
 done
 
-# Advanced cracking tools
-advanced_tools=("hashcat" "hcxdumptool" "hcxtools")
+# Install advanced tools
+echo -e "${YELLOW}[!] INSTALLING ADVANCED TOOLS...${NC}"
+advanced_tools=("hashcat" "hostapd" "dnsmasq")
 for tool in "${advanced_tools[@]}"; do
-    if ! dpkg -l | grep -q $tool; then
-        echo -e "${YELLOW}[!] INSTALLING $tool...${NC}"
-        apt install -y $tool > /dev/null 2>&1
-        if [ $? -eq 0 ]; then
-            echo -e "${GREEN}[✓] $tool INSTALLED${NC}"
-        else
-            echo -e "${RED}[✘] $tool INSTALLATION FAILED${NC}"
-        fi
-    else
-        echo -e "${GREEN}[✓] $tool ALREADY INSTALLED${NC}"
-    fi
+    install_package "$tool"
 done
 
-# Bluetooth tools
+# Install Bluetooth tools
+echo -e "${YELLOW}[!] INSTALLING BLUETOOTH TOOLS...${NC}"
 bt_tools=("bluetooth" "bluez" "blueman" "hcitool" "l2ping" "bluetoothctl")
 for tool in "${bt_tools[@]}"; do
-    if ! dpkg -l | grep -q $tool; then
-        echo -e "${YELLOW}[!] INSTALLING $tool...${NC}"
-        apt install -y $tool > /dev/null 2>&1
-        if [ $? -eq 0 ]; then
-            echo -e "${GREEN}[✓] $tool INSTALLED${NC}"
-        else
-            echo -e "${RED}[✘] $tool INSTALLATION FAILED${NC}"
-        fi
+    install_package "$tool"
+done
+
+# Install Python packages
+echo -e "${YELLOW}[!] INSTALLING PYTHON PACKAGES...${NC}"
+pip_packages=("requests" "scapy")
+for package in "${pip_packages[@]}"; do
+    echo -e "${YELLOW}[!] INSTALLING $package...${NC}"
+    if pip3 install "$package" > /dev/null 2>&1; then
+        echo -e "${GREEN}[✓] $package INSTALLED${NC}"
     else
-        echo -e "${GREEN}[✓] $tool ALREADY INSTALLED${NC}"
+        # Try with break-system-packages
+        pip3 install "$package" --break-system-packages > /dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}[✓] $package INSTALLED${NC}"
+        else
+            echo -e "${RED}[✘] $package INSTALLATION FAILED${NC}"
+        fi
     fi
 done
 
-# Python packages
-echo -e "${YELLOW}[!] INSTALLING PYTHON PACKAGES...${NC}"
-pip3 install requests scapy > /dev/null 2>&1
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}[✓] PYTHON PACKAGES INSTALLED${NC}"
-else
-    echo -e "${RED}[✘] PYTHON PACKAGES INSTALLATION FAILED${NC}"
-fi
-
-# Make Python files executable
-echo -e "${YELLOW}[!] SETTING UP NETSTRIKE FILES...${NC}"
-chmod +x *.py
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}[✓] EXECUTION PERMISSIONS SET${NC}"
-else
-    echo -e "${RED}[✘] PERMISSION SETTING FAILED${NC}"
-fi
-
-# Install MDK4 if not present
-if ! command -v mdk4 &> /dev/null; then
+# Install MDK4
+if ! command_exists mdk4; then
     echo -e "${YELLOW}[!] INSTALLING MDK4...${NC}"
-    git clone https://github.com/aircrack-ng/mdk4 > /dev/null 2>&1
-    if [ $? -eq 0 ]; then
-        cd mdk4
-        make > /dev/null 2>&1
-        make install > /dev/null 2>&1
-        cd ..
-        rm -rf mdk4
+    if install_package "mdk4"; then
         echo -e "${GREEN}[✓] MDK4 INSTALLED${NC}"
     else
-        echo -e "${RED}[✘] MDK4 INSTALLATION FAILED${NC}"
-        echo -e "${YELLOW}[!] TRYING PACKAGE INSTALLATION...${NC}"
-        apt install -y mdk4 > /dev/null 2>&1
+        # Install from source
+        git clone https://github.com/aircrack-ng/mdk4 > /dev/null 2>&1
         if [ $? -eq 0 ]; then
-            echo -e "${GREEN}[✓] MDK4 INSTALLED VIA PACKAGE${NC}"
+            cd mdk4
+            make > /dev/null 2>&1
+            make install > /dev/null 2>&1
+            cd ..
+            rm -rf mdk4
+            echo -e "${GREEN}[✓] MDK4 INSTALLED FROM SOURCE${NC}"
         else
-            echo -e "${RED}[✘] MDK4 INSTALLATION COMPLETELY FAILED${NC}"
+            echo -e "${RED}[✘] MDK4 INSTALLATION FAILED${NC}"
         fi
     fi
 else
     echo -e "${GREEN}[✓] MDK4 ALREADY INSTALLED${NC}"
 fi
 
+# Install hcxtools from source
+if ! command_exists hcxdumptool; then
+    echo -e "${YELLOW}[!] INSTALLING HCXTOOLS...${NC}"
+    git clone https://github.com/ZerBea/hcxtools.git > /dev/null 2>&1
+    git clone https://github.com/ZerBea/hcxdumptool.git > /dev/null 2>&1
+    
+    if [ -d "hcxtools" ]; then
+        cd hcxtools
+        make > /dev/null 2>&1
+        make install > /dev/null 2>&1
+        cd ..
+        rm -rf hcxtools
+    fi
+    
+    if [ -d "hcxdumptool" ]; then
+        cd hcxdumptool
+        make > /dev/null 2>&1
+        make install > /dev/null 2>&1
+        cd ..
+        rm -rf hcxdumptool
+    fi
+    
+    if command_exists hcxdumptool; then
+        echo -e "${GREEN}[✓] HCXTOOLS INSTALLED${NC}"
+    else
+        echo -e "${RED}[✘] HCXTOOLS INSTALLATION FAILED${NC}"
+    fi
+else
+    echo -e "${GREEN}[✓] HCXTOOLS ALREADY INSTALLED${NC}"
+fi
+
 # Download wordlists
-echo -e "${YELLOW}[!] DOWNLOADING ENHANCED WORDLISTS...${NC}"
+echo -e "${YELLOW}[!] DOWNLOADING WORDLISTS...${NC}"
 mkdir -p /usr/share/wordlists
+
+# Download rockyou wordlist
 if [ ! -f "/usr/share/wordlists/rockyou.txt" ]; then
-    wget -q https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt -O /usr/share/wordlists/rockyou.txt
-    if [ $? -eq 0 ]; then
+    if wget -q https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt.gz -O /tmp/rockyou.txt.gz; then
+        gzip -dc /tmp/rockyou.txt.gz > /usr/share/wordlists/rockyou.txt
+        rm /tmp/rockyou.txt.gz
         echo -e "${GREEN}[✓] ROCKYOU WORDLIST DOWNLOADED${NC}"
     else
-        echo -e "${RED}[✘] ROCKYOU DOWNLOAD FAILED${NC}"
+        # Create basic wordlist
+        echo -e "${YELLOW}[!] CREATING BASIC WORDLIST...${NC}"
+        cat > /usr/share/wordlists/basic_passwords.txt << EOF
+123456
+password
+12345678
+qwerty
+123456789
+12345
+1234
+111111
+1234567
+dragon
+123123
+baseball
+abc123
+football
+monkey
+letmein
+696969
+shadow
+master
+666666
+EOF
+        echo -e "${GREEN}[✓] BASIC WORDLIST CREATED${NC}"
     fi
 else
     echo -e "${GREEN}[✓] ROCKYOU WORDLIST ALREADY EXISTS${NC}"
 fi
 
-# Show completion animation
-show_animation
+# Make Python files executable
+echo -e "${YELLOW}[!] SETTING UP NETSTRIKE FILES...${NC}"
+chmod +x *.py
+echo -e "${GREEN}[✓] EXECUTION PERMISSIONS SET${NC}"
 
-echo -e "${GREEN}[✓] NETSTRIKE FRAMEWORK DEPLOYMENT COMPLETED SUCCESSFULLY!${NC}"
+echo -e "${GREEN}[✓] NETSTRIKE FRAMEWORK DEPLOYMENT COMPLETED!${NC}"
 echo ""
-echo -e "${BLUE}╔══════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║                     QUICK START GUIDE                          ║${NC}"
-echo -e "${BLUE}╠══════════════════════════════════════════════════════════════════╣${NC}"
-echo -e "${BLUE}║                                                                  ║${NC}"
-echo -e "${BLUE}║  ${CYAN}TO START NETSTRIKE:${BLUE}                                            ║${NC}"
-echo -e "${BLUE}║    ${GREEN}sudo python3 netstrike.py${BLUE}                                   ║${NC}"
-echo -e "${BLUE}║                                                                  ║${NC}"
-echo -e "${BLUE}║  ${CYAN}NEW FEATURES:${BLUE}                                                 ║${NC}"
-echo -e "${BLUE}║    ${GREEN}• Auto Password Cracking${BLUE} - Tries all methods automatically  ║${NC}"
-echo -e "${BLUE}║    ${GREEN}• Evil Twin Attack${BLUE} - Rogue access point creation           ║${NC}"
-echo -e "${BLUE}║    ${GREEN}• PMKID Attacks${BLUE} - New attack vector without handshake     ║${NC}"
-echo -e "${BLUE}║    ${GREEN}• Enhanced Bluetooth${BLUE} - Better scanning & attacks          ║${NC}"
-echo -e "${BLUE}║    ${GREEN}• Mass Destruction${BLUE} - Improved network annihilation        ║${NC}"
-echo -e "${BLUE}║                                                                  ║${NC}"
-echo -e "${BLUE}║  ${CYAN}IMPORTANT:${BLUE}                                                     ║${NC}"
-echo -e "${BLUE}║  ${YELLOW}• Use only for authorized security testing${BLUE}                     ║${NC}"
-echo -e "${BLUE}║  ${YELLOW}• Test only on networks you own${BLUE}                                ║${NC}"
-echo -e "${BLUE}║  ${YELLOW}• Follow all applicable laws${BLUE}                                  ║${NC}"
-echo -e "${BLUE}║                                                                  ║${NC}"
-echo -e "${BLUE}╚══════════════════════════════════════════════════════════════════╝${NC}"
-echo ""
-echo -e "${CYAN}[💡] TIP: Run 'sudo python3 netstrike.py' to launch the framework${NC}"
+echo -e "${CYAN}[💡] TO START: sudo python3 netstrike.py${NC}"
+echo -e "${YELLOW}[⚠️] IMPORTANT: Use only for authorized testing!${NC}"
