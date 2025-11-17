@@ -73,12 +73,11 @@ class NetStrike:
             print("\033[1;31m║                  🚀 NETSTRIKE ULTIMATE MENU                     ║\033[0m")
             print("\033[1;31m╠══════════════════════════════════════════════════════════════════╣\033[0m")
             print("\033[1;31m║                                                                  ║\033[0m")
-            print("\033[1;31m║ \033[1;33m1\033[0m) \033[1;31m💀 ULTRA MASS DESTRUCTION\033[0m    - Total WiFi annihilation     \033[1;31m║\033[0m")
-            print("\033[1;31m║ \033[1;33m2\033[0m) \033[1;31m💣 ROUTER DESTROYER\033[0m         - Permanent router damage     \033[1;31m║\033[0m")
-            print("\033[1;31m║ \033[1;33m3\033[0m) \033[1;36m🔓 CRACK WI-FI\033[0m              - Password extraction         \033[1;31m║\033[0m")
-            print("\033[1;31m║ \033[1;33m4\033[0m) \033[1;35m👥 ADVANCED EVIL TWIN\033[0m       - Perfect replica + capture  \033[1;31m║\033[0m")
-            print("\033[1;31m║ \033[1;33m5\033[0m) \033[1;34m📡 NETWORK SCANNER\033[0m          - Advanced detection         \033[1;31m║\033[0m")
-            print("\033[1;31m║ \033[1;33m6\033[0m) \033[1;32m🚪 EXIT & CLEAN\033[0m             - No-existence mode          \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m1\033[0m) \033[1;31m💀 FREEZE WI-FI & BLUETOOTH\033[0m   - Complete network freezing  \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m2\033[0m) \033[1;36m🔓 CRACK WI-FI\033[0m               - Password extraction         \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m3\033[0m) \033[1;35m👥 ADVANCED EVIL TWIN\033[0m        - Perfect replica + capture  \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m4\033[0m) \033[1;34m📡 NETWORK SCANNER\033[0m           - Advanced detection         \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m5\033[0m) \033[1;32m🚪 EXIT & CLEAN\033[0m              - No-existence mode          \033[1;31m║\033[0m")
             print("\033[1;31m║                                                                  ║\033[0m")
             print("\033[1;31m╚══════════════════════════════════════════════════════════════════╝\033[0m")
             print("\033[1;33m[💡] TIP: Press Ctrl+C during attacks to stop current operation only\033[0m")
@@ -86,20 +85,56 @@ class NetStrike:
             choice = input("\n\033[1;33m[?] SELECT NETSTRIKE OPTION: \033[0m").strip()
             
             if choice == "1":
-                self.attacker.ultra_mass_destruction()
+                self.freeze_menu()
             elif choice == "2":
-                self.attacker.router_destroyer()
-            elif choice == "3":
                 self.crack_menu()
-            elif choice == "4":
+            elif choice == "3":
                 self.attacker.advanced_evil_twin()
-            elif choice == "5":
+            elif choice == "4":
                 self.scan_menu()
-            elif choice == "6":
+            elif choice == "5":
                 self.cleanup()
             else:
                 print("\033[1;31m[✘] INVALID OPTION\033[0m")
                 input("\033[1;33m[!] PRESS ENTER TO CONTINUE...\033[0m")
+
+    def freeze_menu(self):
+        while True:
+            self.display_banner()
+            print("\033[1;31m╔══════════════════════════════════════════════════════════════════╗\033[0m")
+            print("\033[1;31m║                  ☢️  NETSTRIKE FREEZE WEAPONS                   ║\033[0m")
+            print("\033[1;31m╠══════════════════════════════════════════════════════════════════╣\033[0m")
+            print("\033[1;31m║                                                                  ║\033[0m")
+            print("\033[1;31m║ \033[1;33m1\033[0m) \033[1;31m💣 SINGLE TARGET FREEZE\033[0m      - Ultra-heavy single network \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m2\033[0m) \033[1;31m🌪️  MASS NETWORK FREEZE\033[0m      - Freeze ALL found networks   \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m3\033[0m) \033[1;31m💀 ULTRA MASS DESTRUCTION\033[0m    - Total WiFi annihilation    \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m4\033[0m) \033[1;31m🔥 ROUTER DESTROYER\033[0m          - Permanent router damage    \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m5\033[0m) \033[1;31m📱 BLUETOOTH ANNIHILATION\033[0m    - Destroy Bluetooth devices  \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m6\033[0m) \033[1;35m👥 ADVANCED EVIL TWIN\033[0m        - Perfect replica + capture  \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m7\033[0m) \033[1;32m↩️  BACK TO MAIN MENU\033[0m                                   \033[1;31m║\033[0m")
+            print("\033[1;31m║                                                                  ║\033[0m")
+            print("\033[1;31m╚══════════════════════════════════════════════════════════════════╝\033[0m")
+            
+            choice = input("\n\033[1;33m[?] SELECT WEAPON: \033[0m").strip()
+            
+            if choice == "1":
+                self.attacker.single_target_attack()
+            elif choice == "2":
+                self.attacker.mass_destruction()
+            elif choice == "3":
+                self.attacker.ultra_mass_destruction()
+            elif choice == "4":
+                self.attacker.router_destroyer()
+            elif choice == "5":
+                self.attacker.bluetooth_attack()
+            elif choice == "6":
+                self.attacker.advanced_evil_twin()
+            elif choice == "7":
+                break
+            else:
+                print("\033[1;31m[✘] INVALID SELECTION\033[0m")
+            
+            input("\n\033[1;33m[!] PRESS ENTER TO CONTINUE...\033[0m")
 
     def crack_menu(self):
         while True:
