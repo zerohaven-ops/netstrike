@@ -75,7 +75,8 @@ class NetStrike:
             print("\033[1;31m║ \033[1;33m1\033[0m) \033[1;31m💣 FREEZE WI-FI & BLUETOOTH\033[0m  - Nuclear destruction         \033[1;31m║\033[0m")
             print("\033[1;31m║ \033[1;33m2\033[0m) \033[1;36m🔓 CRACK WI-FI\033[0m              - Password extraction         \033[1;31m║\033[0m")
             print("\033[1;31m║ \033[1;33m3\033[0m) \033[1;34m📡 NETWORK SCANNER\033[0m          - Advanced detection         \033[1;31m║\033[0m")
-            print("\033[1;31m║ \033[1;33m4\033[0m) \033[1;32m🚪 EXIT & CLEAN\033[0m             - No-existence mode          \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m4\033[0m) \033[1;35m👥 EVIL TWIN ATTACK\033[0m         - Rogue access point         \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m5\033[0m) \033[1;32m🚪 EXIT & CLEAN\033[0m             - No-existence mode          \033[1;31m║\033[0m")
             print("\033[1;31m║                                                                  ║\033[0m")
             print("\033[1;31m╚══════════════════════════════════════════════════════════════════╝\033[0m")
             
@@ -88,6 +89,8 @@ class NetStrike:
             elif choice == "3":
                 self.scan_menu()
             elif choice == "4":
+                self.attacker.evil_twin_attack()
+            elif choice == "5":
                 self.cleanup()
             else:
                 print("\033[1;31m[✘] INVALID OPTION\033[0m")
@@ -103,7 +106,8 @@ class NetStrike:
             print("\033[1;31m║ \033[1;33m1\033[0m) \033[1;31m💣 SINGLE TARGET DESTRUCTION\033[0m  - Annihilate one network     \033[1;31m║\033[0m")
             print("\033[1;31m║ \033[1;33m2\033[0m) \033[1;31m☢️  MASS NETWORK DESTRUCTION\033[0m   - Destroy all networks       \033[1;31m║\033[0m")
             print("\033[1;31m║ \033[1;33m3\033[0m) \033[1;31m📱 BLUETOOTH ANNIHILATION\033[0m     - Destroy Bluetooth devices  \033[1;31m║\033[0m")
-            print("\033[1;31m║ \033[1;33m4\033[0m) \033[1;32m↩️  BACK TO MAIN MENU\033[0m                                   \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m4\033[0m) \033[1;35m👥 EVIL TWIN ATTACK\033[0m           - Rogue access point         \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m5\033[0m) \033[1;32m↩️  BACK TO MAIN MENU\033[0m                                   \033[1;31m║\033[0m")
             print("\033[1;31m║                                                                  ║\033[0m")
             print("\033[1;31m╚══════════════════════════════════════════════════════════════════╝\033[0m")
             
@@ -116,6 +120,8 @@ class NetStrike:
             elif choice == "3":
                 self.attacker.bluetooth_attack()
             elif choice == "4":
+                self.attacker.evil_twin_attack()
+            elif choice == "5":
                 break
             else:
                 print("\033[1;31m[✘] INVALID SELECTION\033[0m")
@@ -129,19 +135,22 @@ class NetStrike:
             print("\033[1;31m║                   ☢️  NETSTRIKE CRACKING SUITE                  ║\033[0m")
             print("\033[1;31m╠══════════════════════════════════════════════════════════════════╣\033[0m")
             print("\033[1;31m║                                                                  ║\033[0m")
-            print("\033[1;31m║ \033[1;33m1\033[0m) \033[1;36m🔓 WPA/WPA2 CRACKING\033[0m     - Handshake capture & crack     \033[1;31m║\033[0m")
-            print("\033[1;31m║ \033[1;33m2\033[0m) \033[1;36m📡 WPS PIN ATTACK\033[0m        - WPS vulnerability exploit    \033[1;31m║\033[0m")
-            print("\033[1;31m║ \033[1;33m3\033[0m) \033[1;32m↩️  BACK TO MAIN MENU\033[0m                                   \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m1\033[0m) \033[1;36m⚡ AUTO CRACKING\033[0m           - All methods automatically  \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m2\033[0m) \033[1;36m🔓 WPA/WPA2 CRACKING\033[0m     - Handshake capture & crack   \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m3\033[0m) \033[1;36m📡 WPS PIN ATTACK\033[0m        - WPS vulnerability exploit   \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m4\033[0m) \033[1;32m↩️  BACK TO MAIN MENU\033[0m                                   \033[1;31m║\033[0m")
             print("\033[1;31m║                                                                  ║\033[0m")
             print("\033[1;31m╚══════════════════════════════════════════════════════════════════╝\033[0m")
             
             choice = input("\n\033[1;33m[?] SELECT ATTACK VECTOR: \033[0m").strip()
             
             if choice == "1":
-                self.cracker.wpa_crack_attack()
+                self.cracker.auto_crack_attack()
             elif choice == "2":
-                self.cracker.wps_pin_attack()
+                self.cracker.handshake_capture_auto(None)  # Will prompt for target
             elif choice == "3":
+                self.cracker.wps_pin_attack()
+            elif choice == "4":
                 break
             else:
                 print("\033[1;31m[✘] INVALID SELECTION\033[0m")
@@ -149,10 +158,37 @@ class NetStrike:
             input("\n\033[1;33m[!] PRESS ENTER TO CONTINUE...\033[0m")
 
     def scan_menu(self):
-        print("\033[1;33m[!] INITIATING ADVANCED SCAN...\033[0m")
-        if self.scanner.wifi_scan():
-            self.scanner.display_scan_results()
-        input("\n\033[1;33m[!] PRESS ENTER TO CONTINUE...\033[0m")
+        while True:
+            self.display_banner()
+            print("\033[1;31m╔══════════════════════════════════════════════════════════════════╗\033[0m")
+            print("\033[1;31m║                   📡 NETSTRIKE SCANNING SUITE                   ║\033[0m")
+            print("\033[1;31m╠══════════════════════════════════════════════════════════════════╣\033[0m")
+            print("\033[1;31m║                                                                  ║\033[0m")
+            print("\033[1;31m║ \033[1;33m1\033[0m) \033[1;34m📶 WI-FI NETWORK SCAN\033[0m      - Discover all WiFi networks  \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m2\033[0m) \033[1;34m📱 BLUETOOTH DEVICE SCAN\033[0m   - Discover Bluetooth devices  \033[1;31m║\033[0m")
+            print("\033[1;31m║ \033[1;33m3\033[0m) \033[1;32m↩️  BACK TO MAIN MENU\033[0m                                   \033[1;31m║\033[0m")
+            print("\033[1;31m║                                                                  ║\033[0m")
+            print("\033[1;31m╚══════════════════════════════════════════════════════════════════╝\033[0m")
+            
+            choice = input("\n\033[1;33m[?] SELECT SCAN TYPE: \033[0m").strip()
+            
+            if choice == "1":
+                print("\033[1;33m[!] INITIATING ADVANCED WI-FI SCAN...\033[0m")
+                if self.scanner.wifi_scan():
+                    self.scanner.display_scan_results()
+            elif choice == "2":
+                print("\033[1;33m[!] INITIATING BLUETOOTH RECONNAISSANCE...\033[0m")
+                devices = self.scanner.bluetooth_scan()
+                if devices:
+                    self.scanner.display_bluetooth_results(devices)
+                else:
+                    print("\033[1;31m[✘] NO BLUETOOTH DEVICES FOUND\033[0m")
+            elif choice == "3":
+                break
+            else:
+                print("\033[1;31m[✘] INVALID SELECTION\033[0m")
+            
+            input("\n\033[1;33m[!] PRESS ENTER TO CONTINUE...\033[0m")
 
     def cleanup(self):
         print("\n\033[1;31m[☢️] INITIATING NO-EXISTENCE PROTOCOL...\033[0m")
