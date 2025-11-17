@@ -15,156 +15,215 @@ class NetworkScanner:
         self.scanning = False
 
     def wifi_scan(self, duration=15):
-        """Perform WiFi network scan with DEBUG output"""
+        """Perform WiFi network scan using multiple methods"""
         print("\033[1;33m[!] INITIATING NETSTRIKE SCAN...\033[0m")
         
         if not self.core.mon_interface:
             print("\033[1;31m[✘] NO MONITOR INTERFACE AVAILABLE\033[0m")
             return False
         
-        scan_file = "/tmp/netstrike_scan"
-        
         # Clear previous scan data
         self.networks = {}
         
-        # Remove old scan files
-        subprocess.run(f"rm -f {scan_file}* 2>/dev/null", shell=True)
-        
         print(f"\033[1;36m[→] SCANNING FOR {duration} SECONDS ON {self.core.mon_interface}...\033[0m")
         
+        # Try Method 1: Airodump-ng with specific channel hopping
+        print("\033[1;36m[→] METHOD 1: AIRODUMP-NG SCAN...\033[0m")
+        if self.scan_with_airodump(duration):
+            return True
+        
+        # Try Method 2: Manual channel hopping with airodump
+        print("\033[1;36m[→] METHOD 2: CHANNEL HOPPING SCAN...\033[0m")
+        if self.scan_with_channel_hopping():
+            return True
+        
+        # Try Method 3: Use wash for WPS networks
+        print("\033[1;36m[→] METHOD 3: WPS SCAN...\033[0m")
+        if self.scan_with_wash():
+            return True
+        
+        print("\033[1;31m[✘] ALL SCAN METHODS FAILED\033[0m")
+        return False
+
+    def scan_with_airodump(self, duration):
+        """Method 1: Standard airodump scan"""
         try:
-            # DEBUG: Show the exact command being run
-            print(f"\033[1;35m[DEBUG] Running: timeout {duration}s airodump-ng {self.core.mon_interface} --output-format csv -w {scan_file}\033[0m")
+            scan_file = "/tmp/netstrike_scan"
+            subprocess.run(f"rm -f {scan_file}* 2>/dev/null", shell=True)
             
-            # Start airodump-ng scan
-            scan_process = self.core.run_command(
-                f"timeout {duration}s airodump-ng {self.core.mon_interface} --output-format csv -w {scan_file} --ignore-negative-one",
-                background=True
-            )
+            # Run airodump on specific common channels
+            cmd = f"timeout {duration}s airodump-ng {self.core.mon_interface} --output-format csv -w {scan_file} --band abg"
+            scan_process = self.core.run_command(cmd, background=True)
             
-            # Show progress animation
+            # Show progress
             for i in range(duration):
                 print(f"\033[1;36m[⌛] SCANNING... {i+1}/{duration} SECONDS\033[0m", end='\r')
                 time.sleep(1)
             print()
             
-            # Wait for process to finish
             if scan_process:
                 scan_process.wait()
             
-            # DEBUG: Check if file was created
+            # Check results
             csv_file = f"{scan_file}-01.csv"
-            print(f"\033[1;35m[DEBUG] Looking for file: {csv_file}\033[0m")
-            
-            if os.path.exists(csv_file):
-                file_size = os.path.getsize(csv_file)
-                print(f"\033[1;35m[DEBUG] File exists! Size: {file_size} bytes\033[0m")
-                
-                # DEBUG: Show first few lines of the file
-                if file_size > 0:
-                    print(f"\033[1;35m[DEBUG] First 5 lines of CSV:\033[0m")
-                    with open(csv_file, 'r', errors='ignore') as f:
-                        for i, line in enumerate(f):
-                            if i < 5:
-                                print(f"\033[1;35m[DEBUG] Line {i}: {line.strip()}\033[0m")
-                            else:
-                                break
-                else:
-                    print("\033[1;35m[DEBUG] File is empty!\033[0m")
-                
-                if file_size > 100:
-                    print("\033[1;32m[✓] SCAN COMPLETED SUCCESSFULLY\033[0m")
-                    return self.parse_scan_results(csv_file)
-                else:
-                    print("\033[1;31m[✘] SCAN FAILED - CSV FILE TOO SMALL\033[0m")
-                    return self.manual_scan(duration)
-            else:
-                print("\033[1;31m[✘] SCAN FAILED - NO CSV FILE CREATED\033[0m")
-                return self.manual_scan(duration)
+            if os.path.exists(csv_file) and os.path.getsize(csv_file) > 100:
+                return self.parse_scan_results(csv_file)
                 
         except Exception as e:
-            print(f"\033[1;31m[✘] SCAN ERROR: {e}\033[0m")
-            return False
+            print(f"\033[1;31m[✘] AIRODUMP SCAN FAILED: {e}\033[0m")
+        
+        return False
+
+    def scan_with_channel_hopping(self):
+        """Method 2: Scan common channels one by one"""
+        try:
+            common_channels = [1, 6, 11, 2, 3, 4, 5, 7, 8, 9, 10]  # 2.4GHz channels
+            scan_file = "/tmp/netstrike_channel"
+            
+            for channel in common_channels:
+                print(f"\033[1;36m[→] SCANNING CHANNEL {channel}...\033[0m")
+                
+                # Set channel
+                self.core.run_command(f"iwconfig {self.core.mon_interface} channel {channel}")
+                time.sleep(1)
+                
+                # Quick scan on this channel
+                cmd = f"timeout 3s airodump-ng {self.core.mon_interface} --channel {channel} --output-format csv -w {scan_file}_{channel}"
+                self.core.run_command(cmd)
+                
+                # Parse results
+                csv_file = f"{scan_file}_{channel}-01.csv"
+                if os.path.exists(csv_file) and os.path.getsize(csv_file) > 100:
+                    if self.parse_scan_results(csv_file):
+                        return True
+            
+            # If we found networks in any channel, return them
+            return len(self.networks) > 0
+            
+        except Exception as e:
+            print(f"\033[1;31m[✘] CHANNEL HOPPING FAILED: {e}\033[0m")
+        
+        return False
+
+    def scan_with_wash(self):
+        """Method 3: Use wash to find WPS-enabled networks"""
+        try:
+            print("\033[1;36m[→] SCANNING FOR WPS NETWORKS...\033[0m")
+            
+            result = self.core.run_command(f"timeout 15s wash -i {self.core.mon_interface}")
+            if result and result.returncode == 0 and "BSSID" in result.stdout:
+                lines = result.stdout.strip().split('\n')
+                count = 0
+                
+                for line in lines:
+                    parts = line.split()
+                    if len(parts) >= 6 and ':' in parts[0] and len(parts[0]) == 17:
+                        bssid = parts[0]
+                        channel = parts[1] if parts[1].isdigit() else "1"
+                        power = parts[3] if len(parts) > 3 else "-1"
+                        wps_locked = "WPS" if "Yes" in line else "No WPS"
+                        
+                        # Extract ESSID (usually after WPS status)
+                        essid_start = line.find('   ') + 3
+                        essid = line[essid_start:].strip() if essid_start > 3 else "WPS_NETWORK"
+                        
+                        count += 1
+                        self.networks[count] = {
+                            'bssid': bssid,
+                            'channel': channel,
+                            'power': power,
+                            'encryption': f"WPA2 {wps_locked}",
+                            'essid': essid
+                        }
+                
+                if count > 0:
+                    print(f"\033[1;32m[✓] FOUND {count} WPS NETWORKS\033[0m")
+                    return True
+                    
+        except Exception as e:
+            print(f"\033[1;31m[✘] WPS SCAN FAILED: {e}\033[0m")
+        
+        return False
 
     def parse_scan_results(self, scan_file):
-        """Parse airodump-ng CSV results with DEBUG output"""
+        """Parse airodump-ng CSV results"""
         try:
-            self.networks = {}
+            networks = {}
             count = 0
             
-            print(f"\033[1;35m[DEBUG] Starting CSV parsing...\033[0m")
-            
             with open(scan_file, 'r', encoding='utf-8', errors='ignore') as f:
-                reader = csv.reader(f)
+                content = f.read()
+                lines = content.split('\n')
                 networks_section = True
                 
-                for row_num, row in enumerate(reader):
-                    if not row:
+                for line in lines:
+                    line = line.strip()
+                    if not line:
                         continue
-                    
-                    # DEBUG: Show what we're parsing
-                    if row_num < 3:  # Show first 3 rows for debugging
-                        print(f"\033[1;35m[DEBUG] Row {row_num}: {row}\033[0m")
                     
                     # Check if we've reached the client section
-                    if len(row) > 0 and 'Station MAC' in row[0]:
+                    if 'Station MAC' in line:
                         networks_section = False
-                        print(f"\033[1;35m[DEBUG] Reached client section at row {row_num}\033[0m")
                         continue
                     
-                    if networks_section and len(row) >= 14:
-                        bssid = row[0].strip()
-                        # Validate BSSID format
-                        if len(bssid) == 17 and ':' in bssid and bssid.count(':') == 5:
-                            channel = row[3].strip() if len(row) > 3 and row[3].strip() else "1"
-                            power = row[8].strip() if len(row) > 8 and row[8].strip() else "-1"
-                            encryption = row[5].strip() if len(row) > 5 and row[5].strip() else "OPN"
-                            
-                            # Get ESSID (can be in different positions)
-                            essid = ""
-                            if len(row) > 13:
-                                essid = row[13].strip()
-                            elif len(row) > 1:
-                                essid = row[1].strip()
-                            
-                            # Clean ESSID
-                            essid = essid.replace('"', '').strip()
-                            if not essid:
-                                essid = "HIDDEN_SSID"
-                            
-                            # Clean channel (remove non-numeric)
-                            channel = ''.join(filter(str.isdigit, channel))
-                            if not channel:
+                    if networks_section and len(line) > 10:
+                        parts = line.split(',')
+                        if len(parts) >= 2:
+                            bssid = parts[0].strip()
+                            if len(bssid) == 17 and ':' in bssid:
+                                # Extract basic info with better error handling
                                 channel = "1"
-                            
-                            count += 1
-                            self.networks[count] = {
-                                'bssid': bssid,
-                                'channel': channel,
-                                'power': power,
-                                'encryption': encryption,
-                                'essid': essid
-                            }
-                            
-                            # DEBUG: Show parsed network
-                            print(f"\033[1;35m[DEBUG] Found network {count}: {essid} ({bssid})\033[0m")
+                                power = "-1"
+                                encryption = "OPN"
+                                essid = "HIDDEN_SSID"
+                                
+                                # Try different column positions
+                                if len(parts) > 3 and parts[3].strip():
+                                    channel = parts[3].strip()
+                                if len(parts) > 8 and parts[8].strip():
+                                    power = parts[8].strip()
+                                if len(parts) > 5 and parts[5].strip():
+                                    encryption = parts[5].strip()
+                                if len(parts) > 13 and parts[13].strip():
+                                    essid = parts[13].strip().replace('"', '')
+                                elif len(parts) > 1 and parts[1].strip():
+                                    essid = parts[1].strip().replace('"', '')
+                                
+                                # Clean data
+                                channel = ''.join(filter(str.isdigit, channel)) or "1"
+                                if not essid or essid == "--":
+                                    essid = "HIDDEN_SSID"
+                                
+                                count += 1
+                                networks[count] = {
+                                    'bssid': bssid,
+                                    'channel': channel,
+                                    'power': power,
+                                    'encryption': encryption,
+                                    'essid': essid
+                                }
             
-            print(f"\033[1;32m[✓] PARSED {count} NETWORKS\033[0m")
-            return count > 0
+            # Update networks if we found any
+            if networks:
+                self.networks = networks
+                print(f"\033[1;32m[✓] PARSED {count} NETWORKS\033[0m")
+                return True
             
         except Exception as e:
-            print(f"\033[1;31m[✘] CSV PARSING ERROR: {e}\033[0m")
-            return False
+            print(f"\033[1;31m[✘] PARSING ERROR: {e}\033[0m")
+        
+        return False
 
     def display_scan_results(self):
         """Display scanned networks"""
         if not self.networks:
-            print("\033[1;31m[✘] NO NETWORKS FOUND IN SCAN RESULTS\033[0m")
-            print("\033[1;33m[!] TROUBLESHOOTING:\033[0m")
-            print("  • Check if monitor mode is active")
-            print("  • Ensure wireless adapter supports monitoring")
-            print("  • Try moving closer to networks")
-            print("  • Check if networks are operating on 2.4GHz/5GHz")
+            print("\033[1;31m[✘] NO NETWORKS FOUND\033[0m")
+            print("\033[1;33m[!] TROUBLESHOOTING TIPS:\033[0m")
+            print("  • Ensure you're in range of WiFi networks")
+            print("  • Try using a different wireless adapter")
+            print("  • Some adapters don't support scanning in monitor mode")
+            print("  • Check if networks are on 2.4GHz (5GHz may not be supported)")
+            print("  • Try the WPS scan method in the attack menu")
             return
         
         print("\033[1;34m┌──────────────────────┬────┬─────┬───────────┬──────────────────────────┐\033[0m")
@@ -223,7 +282,7 @@ class NetworkScanner:
             return None
 
     def bluetooth_scan(self):
-        """Scan for Bluetooth devices with DEBUG output"""
+        """Scan for Bluetooth devices"""
         print("\033[1;33m[!] SCANNING FOR BLUETOOTH DEVICES...\033[0m")
         
         # Ensure Bluetooth is enabled
@@ -233,66 +292,46 @@ class NetworkScanner:
         devices = {}
         
         try:
-            # Method 1: Use hcitool scan
-            print("\033[1;36m[→] USING HCITOOL SCAN...\033[0m")
-            result = self.core.run_command("timeout 20s hcitool scan")
+            # Try multiple Bluetooth scanning methods
+            methods = [
+                ("hcitool", "timeout 20s hcitool scan"),
+                ("bluetoothctl", "timeout 10s bluetoothctl scan on && sleep 3 && bluetoothctl devices")
+            ]
             
-            print(f"\033[1;35m[DEBUG] hcitool scan result: {result}\033[0m")
-            
-            if result and result.returncode == 0 and len(result.stdout.strip()) > 10:
-                print(f"\033[1;35m[DEBUG] hcitool output: {result.stdout}\033[0m")
-                lines = result.stdout.strip().split('\n')[1:]  # Skip header
+            for method_name, cmd in methods:
+                print(f"\033[1;36m[→] TRYING {method_name.upper()}...\033[0m")
+                result = self.core.run_command(cmd)
                 
-                for line in lines:
-                    if line.strip():
-                        parts = line.split()
-                        if len(parts) >= 2:
-                            mac = parts[0]
-                            name = ' '.join(parts[1:]) if len(parts) > 2 else "Unknown Device"
-                            
-                            # Get device type
-                            device_type = self.get_bluetooth_device_type(mac, name)
-                            devices[mac] = {
-                                'name': name,
-                                'type': device_type
-                            }
-                
-                if devices:
-                    return devices
+                if result and result.returncode == 0 and result.stdout.strip():
+                    lines = result.stdout.strip().split('\n')
+                    
+                    for line in lines:
+                        if 'Device' in line or (':' in line and len(line.split()[0]) == 17):
+                            parts = line.split()
+                            if len(parts) >= 2:
+                                mac = parts[1] if 'Device' in line else parts[0]
+                                if len(mac) == 17 and ':' in mac:
+                                    name = ' '.join(parts[2:]) if 'Device' in line else ' '.join(parts[1:])
+                                    name = name or "Unknown Device"
+                                    
+                                    device_type = self.get_bluetooth_device_type(mac, name)
+                                    devices[mac] = {
+                                        'name': name,
+                                        'type': device_type
+                                    }
+                    
+                    if devices:
+                        print(f"\033[1;32m[✓] FOUND {len(devices)} BLUETOOTH DEVICES\033[0m")
+                        return devices
             
-            # Method 2: Use bluetoothctl if hcitool fails
-            print("\033[1;36m[→] TRYING BLUETOOTHCTL SCAN...\033[0m")
-            result = self.core.run_command("timeout 20s bluetoothctl scan on")
-            time.sleep(3)
-            result = self.core.run_command("bluetoothctl devices")
-            
-            print(f"\033[1;35m[DEBUG] bluetoothctl result: {result}\033[0m")
-            
-            if result and result.returncode == 0:
-                lines = result.stdout.strip().split('\n')
-                for line in lines:
-                    if 'Device' in line:
-                        parts = line.split()
-                        if len(parts) >= 3:
-                            mac = parts[1]
-                            name = ' '.join(parts[2:])
-                            device_type = self.get_bluetooth_device_type(mac, name)
-                            devices[mac] = {
-                                'name': name,
-                                'type': device_type
-                            }
-                
-                return devices
+            if not devices:
+                print("\033[1;33m[!] NO BLUETOOTH DEVICES FOUND\033[0m")
+                print("  • Make sure Bluetooth is enabled on your devices")
+                print("  • Ensure devices are in discoverable mode")
+                print("  • Try moving closer to the devices")
                 
         except Exception as e:
             print(f"\033[1;31m[✘] BLUETOOTH SCAN ERROR: {e}\033[0m")
-        
-        if not devices:
-            print("\033[1;33m[!] NO BLUETOOTH DEVICES FOUND\033[0m")
-            print("  • Ensure Bluetooth is enabled on target devices")
-            print("  • Make sure devices are discoverable")
-            print("  • Try moving closer to devices")
-            print("  • Check if Bluetooth adapter is working")
         
         return devices
 
