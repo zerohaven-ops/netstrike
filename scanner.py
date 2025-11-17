@@ -5,6 +5,7 @@ import time
 import subprocess
 import threading
 import csv
+import re
 from typing import Dict, List
 
 class NetworkScanner:
@@ -14,217 +15,276 @@ class NetworkScanner:
         self.clients = {}
         self.scanning = False
 
-    def wifi_scan(self, duration=15):
-        """Perform WiFi network scan using multiple methods"""
-        print("\033[1;33m[!] INITIATING NETSTRIKE SCAN...\033[0m")
+    def wifi_scan(self, duration=10):
+        """NETSTRIKE-STYLE WiFi Scan with Real-time Display"""
+        print("\033[1;33m[!] INITIATING NUCLEAR SCAN PROTOCOL...\033[0m")
         
         if not self.core.mon_interface:
             print("\033[1;31m[✘] NO MONITOR INTERFACE AVAILABLE\033[0m")
             return False
         
-        # Clear previous scan data
+        # Clear previous data
         self.networks = {}
         
-        print(f"\033[1;36m[→] SCANNING FOR {duration} SECONDS ON {self.core.mon_interface}...\033[0m")
+        print(f"\033[1;36m[→] DEPLOYING SCAN DRONE ON {self.core.mon_interface}...\033[0m")
+        print(f"\033[1;36m[⌛] SCAN DURATION: {duration} SECONDS\033[0m")
         
-        # Try Method 1: Airodump-ng with specific channel hopping
-        print("\033[1;36m[→] METHOD 1: AIRODUMP-NG SCAN...\033[0m")
-        if self.scan_with_airodump(duration):
-            return True
-        
-        # Try Method 2: Manual channel hopping with airodump
-        print("\033[1;36m[→] METHOD 2: CHANNEL HOPPING SCAN...\033[0m")
-        if self.scan_with_channel_hopping():
-            return True
-        
-        # Try Method 3: Use wash for WPS networks
-        print("\033[1;36m[→] METHOD 3: WPS SCAN...\033[0m")
-        if self.scan_with_wash():
-            return True
-        
-        print("\033[1;31m[✘] ALL SCAN METHODS FAILED\033[0m")
-        return False
+        # Use the working airodump approach
+        return self.netstrike_real_time_scan(duration)
 
-    def scan_with_airodump(self, duration):
-        """Method 1: Standard airodump scan"""
+    def netstrike_real_time_scan(self, duration):
+        """NetStrike real-time scanning with live display"""
         try:
-            scan_file = "/tmp/netstrike_scan"
+            scan_file = "/tmp/netstrike_live"
             subprocess.run(f"rm -f {scan_file}* 2>/dev/null", shell=True)
             
-            # Run airodump on specific common channels
-            cmd = f"timeout {duration}s airodump-ng {self.core.mon_interface} --output-format csv -w {scan_file} --band abg"
-            scan_process = self.core.run_command(cmd, background=True)
+            # Build the working airodump command
+            cmd = [
+                "airodump-ng",
+                self.core.mon_interface,
+                "--output-format", "csv",
+                "-w", scan_file,
+                "--write-interval", "1"
+            ]
             
-            # Show progress
-            for i in range(duration):
-                print(f"\033[1;36m[⌛] SCANNING... {i+1}/{duration} SECONDS\033[0m", end='\r')
-                time.sleep(1)
-            print()
+            print("\033[1;32m[✓] SCAN DRONE DEPLOYED\033[0m")
+            print("\033[1;36m[📡] CAPTURING NETWORK SIGNALS...\033[0m")
             
-            if scan_process:
-                scan_process.wait()
+            # Start airodump in background
+            scan_process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
             
-            # Check results
-            csv_file = f"{scan_file}-01.csv"
-            if os.path.exists(csv_file) and os.path.getsize(csv_file) > 100:
-                return self.parse_scan_results(csv_file)
+            # Show real-time progress with NetStrike style
+            start_time = time.time()
+            while time.time() - start_time < duration:
+                elapsed = int(time.time() - start_time)
+                remaining = duration - elapsed
                 
-        except Exception as e:
-            print(f"\033[1;31m[✘] AIRODUMP SCAN FAILED: {e}\033[0m")
-        
-        return False
-
-    def scan_with_channel_hopping(self):
-        """Method 2: Scan common channels one by one"""
-        try:
-            common_channels = [1, 6, 11, 2, 3, 4, 5, 7, 8, 9, 10]  # 2.4GHz channels
-            scan_file = "/tmp/netstrike_channel"
+                # Update scan file and show progress
+                self.update_live_display(scan_file, elapsed, duration)
+                time.sleep(2)
             
-            for channel in common_channels:
-                print(f"\033[1;36m[→] SCANNING CHANNEL {channel}...\033[0m")
-                
-                # Set channel
-                self.core.run_command(f"iwconfig {self.core.mon_interface} channel {channel}")
-                time.sleep(1)
-                
-                # Quick scan on this channel
-                cmd = f"timeout 3s airodump-ng {self.core.mon_interface} --channel {channel} --output-format csv -w {scan_file}_{channel}"
-                self.core.run_command(cmd)
-                
-                # Parse results
-                csv_file = f"{scan_file}_{channel}-01.csv"
-                if os.path.exists(csv_file) and os.path.getsize(csv_file) > 100:
-                    if self.parse_scan_results(csv_file):
-                        return True
+            # Stop scanning
+            scan_process.terminate()
+            scan_process.wait()
             
-            # If we found networks in any channel, return them
-            return len(self.networks) > 0
+            print("\033[1;32m[✓] SCAN COMPLETE\033[0m")
+            return self.finalize_scan_results(scan_file)
             
         except Exception as e:
-            print(f"\033[1;31m[✘] CHANNEL HOPPING FAILED: {e}\033[0m")
-        
-        return False
+            print(f"\033[1;31m[✘] SCAN FAILED: {e}\033[0m")
+            return False
 
-    def scan_with_wash(self):
-        """Method 3: Use wash to find WPS-enabled networks"""
+    def update_live_display(self, scan_file, elapsed, total):
+        """Update live display during scanning"""
+        csv_file = f"{scan_file}-01.csv"
+        
+        if os.path.exists(csv_file) and os.path.getsize(csv_file) > 100:
+            networks = self.parse_live_scan(csv_file)
+            if networks:
+                self.show_live_results(networks, elapsed, total)
+
+    def parse_live_scan(self, csv_file):
+        """Parse live scan results"""
+        networks = {}
         try:
-            print("\033[1;36m[→] SCANNING FOR WPS NETWORKS...\033[0m")
+            with open(csv_file, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
             
-            result = self.core.run_command(f"timeout 15s wash -i {self.core.mon_interface}")
-            if result and result.returncode == 0 and "BSSID" in result.stdout:
-                lines = result.stdout.strip().split('\n')
-                count = 0
+            lines = content.split('\n')
+            count = 0
+            
+            for line in lines:
+                line = line.strip()
+                if not line or 'BSSID' in line or 'Station MAC' in line:
+                    continue
                 
-                for line in lines:
-                    parts = line.split()
-                    if len(parts) >= 6 and ':' in parts[0] and len(parts[0]) == 17:
-                        bssid = parts[0]
-                        channel = parts[1] if parts[1].isdigit() else "1"
-                        power = parts[3] if len(parts) > 3 else "-1"
-                        wps_locked = "WPS" if "Yes" in line else "No WPS"
-                        
-                        # Extract ESSID (usually after WPS status)
-                        essid_start = line.find('   ') + 3
-                        essid = line[essid_start:].strip() if essid_start > 3 else "WPS_NETWORK"
-                        
+                parts = line.split(',')
+                if len(parts) >= 14:
+                    bssid = parts[0].strip()
+                    if self.is_valid_bssid(bssid):
                         count += 1
-                        self.networks[count] = {
+                        
+                        # Extract network info
+                        channel = parts[3].strip() if len(parts) > 3 else "1"
+                        power = parts[8].strip() if len(parts) > 8 else "-1"
+                        encryption = parts[5].strip() if len(parts) > 5 else "OPN"
+                        essid = parts[13].strip().replace('"', '') if len(parts) > 13 else "HIDDEN_SSID"
+                        
+                        if not essid or essid == "--":
+                            essid = "HIDDEN_SSID"
+                        
+                        networks[count] = {
                             'bssid': bssid,
                             'channel': channel,
                             'power': power,
-                            'encryption': f"WPA2 {wps_locked}",
+                            'encryption': encryption,
                             'essid': essid
                         }
-                
-                if count > 0:
-                    print(f"\033[1;32m[✓] FOUND {count} WPS NETWORKS\033[0m")
-                    return True
-                    
-        except Exception as e:
-            print(f"\033[1;31m[✘] WPS SCAN FAILED: {e}\033[0m")
-        
-        return False
+            
+            return networks
+            
+        except Exception:
+            return {}
 
-    def parse_scan_results(self, scan_file):
-        """Parse airodump-ng CSV results"""
-        try:
-            networks = {}
-            count = 0
+    def show_live_results(self, networks, elapsed, total):
+        """Show live scanning results in NetStrike style"""
+        os.system('clear')
+        
+        # NetStrike Banner
+        print("\033[1;31m")
+        print("╔══════════════════════════════════════════════════════════════════╗")
+        print("║                   🚀 NETSTRIKE LIVE SCAN                        ║")
+        print("║                   📡 REAL-TIME NETWORK DISCOVERY                ║")
+        print("╚══════════════════════════════════════════════════════════════════╝")
+        print("\033[0m")
+        
+        # Progress
+        progress = int((elapsed / total) * 50)
+        bar = "[" + "█" * progress + " " * (50 - progress) + "]"
+        print(f"\033[1;36m[⌛] SCAN PROGRESS: {bar} {elapsed}/{total}s\033[0m")
+        print(f"\033[1;32m[✓] NETWORKS DETECTED: {len(networks)}\033[0m")
+        print()
+        
+        # Display networks
+        if networks:
+            print("\033[1;34m┌──────────────────────┬────┬─────┬───────────┬──────────────────────────┐\033[0m")
+            print("\033[1;34m│ \033[1;37m#  MAC Address         CH  PWR  ENCRYPTION  NETWORK NAME\033[1;34m             │\033[0m")
+            print("\033[1;34m├──────────────────────┼────┼─────┼───────────┼──────────────────────────┤\033[0m")
             
-            with open(scan_file, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
-                lines = content.split('\n')
-                networks_section = True
+            for idx, net_info in list(networks.items())[:8]:  # Show first 8
+                bssid = net_info['bssid']
+                channel = net_info['channel']
+                power = net_info['power']
+                encryption = net_info['encryption']
+                essid = net_info['essid']
                 
-                for line in lines:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    
-                    # Check if we've reached the client section
-                    if 'Station MAC' in line:
-                        networks_section = False
-                        continue
-                    
-                    if networks_section and len(line) > 10:
-                        parts = line.split(',')
-                        if len(parts) >= 2:
-                            bssid = parts[0].strip()
-                            if len(bssid) == 17 and ':' in bssid:
-                                # Extract basic info with better error handling
-                                channel = "1"
-                                power = "-1"
-                                encryption = "OPN"
-                                essid = "HIDDEN_SSID"
-                                
-                                # Try different column positions
-                                if len(parts) > 3 and parts[3].strip():
-                                    channel = parts[3].strip()
-                                if len(parts) > 8 and parts[8].strip():
-                                    power = parts[8].strip()
-                                if len(parts) > 5 and parts[5].strip():
-                                    encryption = parts[5].strip()
-                                if len(parts) > 13 and parts[13].strip():
-                                    essid = parts[13].strip().replace('"', '')
-                                elif len(parts) > 1 and parts[1].strip():
-                                    essid = parts[1].strip().replace('"', '')
-                                
-                                # Clean data
-                                channel = ''.join(filter(str.isdigit, channel)) or "1"
-                                if not essid or essid == "--":
-                                    essid = "HIDDEN_SSID"
-                                
-                                count += 1
-                                networks[count] = {
-                                    'bssid': bssid,
-                                    'channel': channel,
-                                    'power': power,
-                                    'encryption': encryption,
-                                    'essid': essid
-                                }
+                # NetStrike visual formatting
+                if essid == "HIDDEN_SSID":
+                    display_name = "\033[1;31mHIDDEN_SSID\033[0m"
+                else:
+                    display_name = f"\033[1;37m{essid:.20}\033[0m" + ("..." if len(essid) > 20 else "")
+                
+                # Encryption icons with NetStrike style
+                enc_icon = "🔓"
+                enc_color = "\033[1;33m"  # Yellow for open
+                if "WPA2" in encryption:
+                    enc_icon = "🔒"
+                    enc_color = "\033[1;31m"  # Red for WPA2
+                elif "WPA" in encryption:
+                    enc_icon = "🔐" 
+                    enc_color = "\033[1;35m"  # Purple for WPA
+                elif "WEP" in encryption:
+                    enc_icon = "🗝️ "
+                    enc_color = "\033[1;36m"  # Cyan for WEP
+                
+                enc_display = f"{enc_icon} {encryption.split()[0] if ' ' in encryption else encryption}"
+                
+                print(f"\033[1;34m│ \033[1;33m{idx:2d}\033[0m \033[1;32m{bssid}\033[0m \033[1;36m{channel:>3}\033[0m \033[1;31m{power:>3}\033[0m {enc_color}{enc_display:10}\033[0m {display_name:24} \033[1;34m│\033[0m")
             
-            # Update networks if we found any
-            if networks:
-                self.networks = networks
-                print(f"\033[1;32m[✓] PARSED {count} NETWORKS\033[0m")
-                return True
+            print("\033[1;34m└──────────────────────┴────┴─────┴───────────┴──────────────────────────┘\033[0m")
+            
+            if len(networks) > 8:
+                print(f"\033[1;33m[!] ... AND {len(networks) - 8} MORE NETWORKS\033[0m")
+        
+        print(f"\033[1;36m[📡] CONTINUING SCAN... PRESS CTRL+C TO ABORT\033[0m")
+
+    def finalize_scan_results(self, scan_file):
+        """Finalize and display complete scan results"""
+        csv_file = f"{scan_file}-01.csv"
+        
+        if not os.path.exists(csv_file):
+            print("\033[1;31m[✘] SCAN DATA NOT FOUND\033[0m")
+            return False
+        
+        # Parse final results
+        self.networks = self.parse_final_scan(csv_file)
+        
+        if not self.networks:
+            print("\033[1;31m[✘] NO NETWORKS CAPTURED\033[0m")
+            return False
+        
+        print(f"\033[1;32m[🎯] SCAN MISSION ACCOMPLISHED: {len(self.networks)} TARGETS ACQUIRED\033[0m")
+        return True
+
+    def parse_final_scan(self, csv_file):
+        """Parse final scan results"""
+        networks = {}
+        try:
+            with open(csv_file, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+            
+            lines = content.split('\n')
+            count = 0
+            in_networks = True
+            
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                if 'Station MAC' in line:
+                    in_networks = False
+                    continue
+                    
+                if not in_networks:
+                    continue
+                    
+                if 'BSSID' in line:
+                    continue
+                
+                parts = line.split(',')
+                if len(parts) >= 14:
+                    bssid = parts[0].strip()
+                    if self.is_valid_bssid(bssid):
+                        count += 1
+                        
+                        channel = parts[3].strip() if len(parts) > 3 else "1"
+                        power = parts[8].strip() if len(parts) > 8 else "-1"
+                        encryption = parts[5].strip() if len(parts) > 5 else "OPN"
+                        essid = parts[13].strip().replace('"', '') if len(parts) > 13 else "HIDDEN_SSID"
+                        
+                        if not essid or essid == "--":
+                            essid = "HIDDEN_SSID"
+                        
+                        networks[count] = {
+                            'bssid': bssid,
+                            'channel': channel,
+                            'power': power,
+                            'encryption': encryption,
+                            'essid': essid
+                        }
+            
+            return networks
             
         except Exception as e:
-            print(f"\033[1;31m[✘] PARSING ERROR: {e}\033[0m")
-        
-        return False
+            print(f"\033[1;31m[✘] FINAL PARSE ERROR: {e}\033[0m")
+            return {}
+
+    def is_valid_bssid(self, bssid):
+        """Validate BSSID format"""
+        return (len(bssid) == 17 and 
+                bssid.count(':') == 5 and 
+                bssid != '00:00:00:00:00:00')
 
     def display_scan_results(self):
-        """Display scanned networks"""
+        """Display final scan results in NetStrike victory style"""
         if not self.networks:
-            print("\033[1;31m[✘] NO NETWORKS FOUND\033[0m")
-            print("\033[1;33m[!] TROUBLESHOOTING TIPS:\033[0m")
-            print("  • Ensure you're in range of WiFi networks")
-            print("  • Try using a different wireless adapter")
-            print("  • Some adapters don't support scanning in monitor mode")
-            print("  • Check if networks are on 2.4GHz (5GHz may not be supported)")
-            print("  • Try the WPS scan method in the attack menu")
+            print("\033[1;31m[✘] NO TARGETS TO DISPLAY\033[0m")
             return
+        
+        print("\033[1;31m")
+        print("╔══════════════════════════════════════════════════════════════════╗")
+        print("║                   🎯 SCAN MISSION COMPLETE                      ║")
+        print("║                   📊 TARGET ACQUISITION REPORT                  ║")
+        print("╚══════════════════════════════════════════════════════════════════╝")
+        print("\033[0m")
+        
+        print(f"\033[1;32m[✓] TOTAL TARGETS ACQUIRED: {len(self.networks)}\033[0m")
+        print()
         
         print("\033[1;34m┌──────────────────────┬────┬─────┬───────────┬──────────────────────────┐\033[0m")
         print("\033[1;34m│ \033[1;37m#  MAC Address         CH  PWR  ENCRYPTION  NETWORK NAME\033[1;34m             │\033[0m")
@@ -237,33 +297,39 @@ class NetworkScanner:
             encryption = net_info['encryption']
             essid = net_info['essid']
             
-            # Format display name
+            # NetStrike victory formatting
             if essid == "HIDDEN_SSID":
-                display_name = "\033[1;31mHIDDEN_SSID\033[0m"
+                display_name = "\033[1;31m🚫 HIDDEN_SSID\033[0m"
             else:
-                display_name = f"\033[1;37m{essid:.20}\033[0m" + ("..." if len(essid) > 20 else "")
+                display_name = f"\033[1;37m🎯 {essid:.18}\033[0m" + ("..." if len(essid) > 18 else "")
             
-            # Determine encryption type with icons
+            # Victory encryption styling
             enc_icon = "🔓"
+            enc_color = "\033[1;33m"
             if "WPA2" in encryption:
                 enc_icon = "🔒"
+                enc_color = "\033[1;31m"
             elif "WPA" in encryption:
                 enc_icon = "🔐"
+                enc_color = "\033[1;35m"
             elif "WEP" in encryption:
                 enc_icon = "🗝️ "
+                enc_color = "\033[1;36m"
             
             enc_display = f"{enc_icon} {encryption.split()[0] if ' ' in encryption else encryption}"
             
-            print(f"\033[1;34m│ \033[1;33m{idx:2d}\033[0m \033[1;32m{bssid}\033[0m \033[1;36m{channel:>3}\033[0m \033[1;31m{power:>3}\033[0m \033[1;34m{enc_display:10}\033[0m {display_name:24} \033[1;34m│\033[0m")
+            print(f"\033[1;34m│ \033[1;33m{idx:2d}\033[0m \033[1;32m{bssid}\033[0m \033[1;36m{channel:>3}\033[0m \033[1;31m{power:>3}\033[0m {enc_color}{enc_display:10}\033[0m {display_name:24} \033[1;34m│\033[0m")
         
         print("\033[1;34m└──────────────────────┴────┴─────┴───────────┴──────────────────────────┘\033[0m")
-        print(f"\033[1;32m[✓] DISPLAYING {len(self.networks)} NETWORKS\033[0m")
+        print("\033[1;32m[✅] TARGETS READY FOR NUCLEAR ENGAGEMENT\033[0m")
 
     def select_target(self):
-        """Select target from scanned networks"""
+        """Select target with NetStrike style"""
         if not self.networks:
             print("\033[1;31m[✘] NO TARGETS AVAILABLE\033[0m")
             return None
+        
+        print("\033[1;33m[🎯] PREPARE TARGET SELECTION\033[0m")
         
         try:
             selection = input("\n\033[1;33m[?] SELECT TARGET (1-{}): \033[0m".format(len(self.networks)))
@@ -271,85 +337,71 @@ class NetworkScanner:
             
             if 1 <= idx <= len(self.networks):
                 target = self.networks[idx]
-                print(f"\033[1;32m[✓] TARGET ACQUIRED: {target['essid']}\033[0m")
+                print(f"\033[1;32m[🎯] TARGET ACQUIRED: {target['essid']}\033[0m")
+                print(f"\033[1;32m[📡] TARGET LOCKED: {target['bssid']} | CH: {target['channel']}\033[0m")
                 return target
             else:
-                print("\033[1;31m[✘] INVALID SELECTION\033[0m")
+                print("\033[1;31m[✘] INVALID TARGET SELECTION\033[0m")
                 return None
                 
         except ValueError:
-            print("\033[1;31m[✘] INVALID INPUT\033[0m")
+            print("\033[1;31m[✘] INVALID INPUT - ENTER TARGET NUMBER\033[0m")
             return None
 
     def bluetooth_scan(self):
-        """Scan for Bluetooth devices"""
-        print("\033[1;33m[!] SCANNING FOR BLUETOOTH DEVICES...\033[0m")
+        """NetStrike Bluetooth scanning"""
+        print("\033[1;33m[!] INITIATING BLUETOOTH RECONNAISSANCE...\033[0m")
         
-        # Ensure Bluetooth is enabled
         self.core.run_command("systemctl start bluetooth >/dev/null 2>&1")
         self.core.run_command("hciconfig hci0 up >/dev/null 2>&1")
         
         devices = {}
         
         try:
-            # Try multiple Bluetooth scanning methods
-            methods = [
-                ("hcitool", "timeout 20s hcitool scan"),
-                ("bluetoothctl", "timeout 10s bluetoothctl scan on && sleep 3 && bluetoothctl devices")
-            ]
+            print("\033[1;36m[📡] DEPLOYING BLUETOOTH SENSORS...\033[0m")
+            result = self.core.run_command("timeout 20s hcitool scan")
             
-            for method_name, cmd in methods:
-                print(f"\033[1;36m[→] TRYING {method_name.upper()}...\033[0m")
-                result = self.core.run_command(cmd)
+            if result and result.returncode == 0:
+                lines = result.stdout.strip().split('\n')[1:]
                 
-                if result and result.returncode == 0 and result.stdout.strip():
-                    lines = result.stdout.strip().split('\n')
-                    
-                    for line in lines:
-                        if 'Device' in line or (':' in line and len(line.split()[0]) == 17):
-                            parts = line.split()
-                            if len(parts) >= 2:
-                                mac = parts[1] if 'Device' in line else parts[0]
-                                if len(mac) == 17 and ':' in mac:
-                                    name = ' '.join(parts[2:]) if 'Device' in line else ' '.join(parts[1:])
-                                    name = name or "Unknown Device"
-                                    
-                                    device_type = self.get_bluetooth_device_type(mac, name)
-                                    devices[mac] = {
-                                        'name': name,
-                                        'type': device_type
-                                    }
-                    
-                    if devices:
-                        print(f"\033[1;32m[✓] FOUND {len(devices)} BLUETOOTH DEVICES\033[0m")
-                        return devices
-            
-            if not devices:
-                print("\033[1;33m[!] NO BLUETOOTH DEVICES FOUND\033[0m")
-                print("  • Make sure Bluetooth is enabled on your devices")
-                print("  • Ensure devices are in discoverable mode")
-                print("  • Try moving closer to the devices")
+                for line in lines:
+                    if line.strip():
+                        parts = line.split()
+                        if len(parts) >= 2:
+                            mac = parts[0]
+                            name = ' '.join(parts[1:]) if len(parts) > 2 else "Unknown Device"
+                            device_type = self.get_bluetooth_device_type(mac, name)
+                            devices[mac] = {'name': name, 'type': device_type}
                 
+                if devices:
+                    print(f"\033[1;32m[✓] BLUETOOTH TARGETS ACQUIRED: {len(devices)}\033[0m")
+                    return devices
+                    
         except Exception as e:
-            print(f"\033[1;31m[✘] BLUETOOTH SCAN ERROR: {e}\033[0m")
+            print(f"\033[1;31m[✘] BLUETOOTH RECON FAILED: {e}\033[0m")
+        
+        if not devices:
+            print("\033[1;33m[!] NO BLUETOOTH TARGETS DETECTED\033[0m")
+            print("  • Ensure devices are in discoverable mode")
+            print("  • Check Bluetooth adapter functionality")
         
         return devices
 
     def get_bluetooth_device_type(self, mac, name):
-        """Determine Bluetooth device type"""
+        """Classify Bluetooth devices"""
         name_lower = name.lower()
         
         if any(word in name_lower for word in ['airpod', 'airpods', 'earpod', 'headphone', 'headset']):
-            return "🎧 Headphones"
+            return "🎧 Audio Device"
         elif any(word in name_lower for word in ['iphone', 'samsung', 'xiaomi', 'huawei', 'phone', 'mobile']):
-            return "📱 Phone"
+            return "📱 Mobile Device"
         elif any(word in name_lower for word in ['tablet', 'ipad', 'tab']):
             return "📟 Tablet"
         elif any(word in name_lower for word in ['laptop', 'notebook', 'macbook']):
-            return "💻 Laptop"
+            return "💻 Computer"
         elif any(word in name_lower for word in ['watch', 'smartwatch', 'galaxy watch']):
-            return "⌚ Smartwatch"
+            return "⌚ Wearable"
         elif any(word in name_lower for word in ['speaker', 'sound', 'jbl', 'bose']):
             return "🔊 Speaker"
         else:
-            return "🔵 Bluetooth Device"
+            return "🔵 Unknown Device"
