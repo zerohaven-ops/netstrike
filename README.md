@@ -1,49 +1,64 @@
-# NetStrike Framework v2.0
-## Advanced Wireless Security Assessment Tool
+# NetStrike Framework v2.0 Ultimate
+## Advanced Wireless Security Research Platform
 ### by ZeroHaven Security
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/Version-2.0_Ultimate-blue" alt="Version">
   <img src="https://img.shields.io/badge/License-Educational-green" alt="License">
   <img src="https://img.shields.io/badge/Platform-Linux-orange" alt="Platform">
+  <img src="https://img.shields.io/badge/Python-3.x-yellow" alt="Python">
 </p>
 
 ## ⚠️ LEGAL DISCLAIMER & RESPONSIBLE USE
 
-**IMPORTANT: This tool is developed for educational and authorized security testing purposes ONLY.**
+**CRITICAL: This tool is developed STRICTLY for educational, research, and authorized security testing purposes ONLY.**
 
-### 🛡️ Legal Usage:
-- Test on your own networks and devices
-- Use in controlled lab environments  
-- Conduct authorized penetration tests
-- Educational and research purposes
+### 🛡️ Approved Usage:
+- Security research in controlled lab environments
+- Authorized penetration testing with written permission
+- Educational demonstrations in academic settings
+- Personal network security assessment on owned equipment
+- Cybersecurity training and awareness programs
 
-### 🚫 Illegal Usage:
-- Testing networks without explicit permission
-- Disrupting public or others' networks
-- Any malicious or unauthorized activities
+### 🚫 Strictly Prohibited:
+- Testing networks without explicit owner consent
+- Disrupting public or commercial network services
+- Any unauthorized network interference
+- Malicious activities or cybercrime
+- Violating local laws and regulations
 
-**The developers are NOT responsible for any misuse of this tool. Users are solely responsible for complying with local laws.**
+**Developers assume NO liability for misuse. Users are solely responsible for complying with all applicable laws.**
 
-## 🚀 Features
+## 🚀 Enhanced Features
 
-- **Advanced WiFi Scanning** - Comprehensive network enumeration
-- **Wireless Security Assessment** - Vulnerability identification
-- **Bluetooth Security Testing** - Device security analysis
-- **WPA/WPA2 Security Research** - Cryptographic research
-- **Network Defense Testing** - Security control validation
-- **Complete Anonymity Mode** - Privacy protection
-- **Automated Tool Installation** - Easy setup
+### Network Security Research
+- **Advanced Wireless Enumeration** - Comprehensive network discovery
+- **Security Vulnerability Assessment** - Wireless protocol analysis
+- **Defensive Security Testing** - Network resilience validation
+- **Privacy Protection Research** - Anonymity and security studies
 
-## 📦 Installation
+### Educational Modules
+- **Wireless Protocol Analysis** - 802.11 security research
+- **Cryptographic Research** - WPA/WPA2 security studies  
+- **Bluetooth Security** - Short-range protocol analysis
+- **Network Defense** - Security control validation
 
-### Prerequisites:
-- Kali Linux or Debian-based system
-- Root privileges required
-- Wireless card supporting monitor mode
-- If any error delete complete folder and install again by quick installation steps then use 
+### Advanced Capabilities
+- **Automated Security Toolchain** - Complete research environment
+- **Real-time Network Monitoring** - Live security assessment
+- **Comprehensive Reporting** - Research documentation
+- **Educational Demonstrations** - Security awareness training
 
-### Quick Install Recommended:
+## 📦 Installation & Setup
+
+### System Requirements:
+- Kali Linux or Debian-based distribution
+- Administrative privileges required
+- Wireless network adapter supporting monitor mode
+- Minimum 2GB RAM, 10GB disk space
+- May have some errors Use and report them so i can fix
+
+### Quick Installation (Recommended):
 ```bash
 git clone https://github.com/zerohaven-ops/netstrike
 cd netstrike
@@ -51,82 +66,194 @@ chmod +x install.sh
 sudo ./install.sh
 
 
-Manual Install:
+Manual Installation:
 bash
 # Clone repository
 git clone https://github.com/zerohaven-ops/netstrike
 cd netstrike
 
-# Make executable
+# Set execution permissions
 chmod +x *.py
 
-# Install dependencies
+# Install core dependencies
 sudo apt update
 sudo apt install -y python3 aircrack-ng macchanger xterm
 
-# Run NetStrike
+# Launch research framework
 sudo python3 netstrike.py
-🎯 Usage
-Start the framework:
+Troubleshooting:
+If you encounter installation issues:
 
+Delete the repository folder: rm -rf netstrike
+
+Follow quick installation steps above
+
+Ensure all system packages are updated
+
+🎯 Research Usage
+Starting the Framework:
 bash
 sudo python3 netstrike.py
-Main Menu Options:
+Main Research Modules:
+Wireless Security Research - Network security assessment
 
-1 Freeze WiFi & Bluetooth - Security testing
+Cryptographic Analysis - Password security research
 
-2 Crack WiFi - Password security research
+Network Discovery - Advanced network enumeration
 
-3 Network Scanner - Network discovery
+Security Demonstrations - Educational security scenarios
 
-4 Exit & Clean - Safe termination
+Safe Termination - Clean environment reset
 
-Follow on-screen instructions for authorized testing
+Research Guidelines:
+Always obtain written authorization before testing
 
-🔧 Modules
-Core Components:
-netstrike.py - Main application entry point
+Use exclusively in controlled laboratory environments
 
-core.py - Core utilities and system functions
-
-scanner.py - Network and Bluetooth scanning
-
-attacker.py - Security testing modules
-
-cracker.py - Cryptographic research tools
-
-installer.py - Dependency management
-
-📚 Educational Purpose
-This tool is designed for:
-
-Cybersecurity students and researchers
-
-Network security professionals
-
-Ethical hacking course materials
-
-Security awareness training
-
-Defensive security research
-
-🛡️ Security Best Practices
-Always obtain proper authorization before testing
-
-Use in isolated lab environments
+Document findings for educational purposes
 
 Follow responsible disclosure practices
 
 Respect privacy and legal boundaries
 
-Use for improving network security
+🔧 Research Components
+Core Framework:
+netstrike.py - Main research interface
 
-🤝 Contributing
-Contributions for educational and research purposes are welcome. Please ensure all contributions adhere to ethical security practices.
+core.py - Framework utilities and system management
 
-📜 License
-This project is licensed for Educational Use Only. Commercial use, modification for malicious purposes, or redistribution without permission is prohibited.
+scanner.py - Network discovery and enumeration
 
-Remember: With great power comes great responsibility. Use this tool wisely and ethically.
+attacker.py - Security testing modules (authorized use only)
 
-REPORT THE ERRORS SO I CAN FIX THEM. USE WITH CAUTION!!!!
+cracker.py - Cryptographic research tools
+
+installer.py - Research environment setup
+
+Educational Focus:
+Each module is designed for:
+
+Cybersecurity curriculum development
+
+Network security research
+
+Defensive security training
+
+Security protocol analysis
+
+Academic security studies
+
+📚 Educational Applications
+Academic Use Cases:
+University Cybersecurity Programs - Wireless security courses
+
+Security Research Labs - Protocol vulnerability research
+
+Corporate Security Training - Employee awareness programs
+
+Government Security Agencies - Authorized defense testing
+
+Security Conferences - Educational demonstrations
+
+Research Objectives:
+Understanding wireless security vulnerabilities
+
+Developing improved defense mechanisms
+
+Training next-generation security professionals
+
+Advancing network security protocols
+
+Promoting cybersecurity awareness
+
+🛡️ Security Best Practices
+Research Ethics:
+✅ Always obtain proper authorization
+
+✅ Use in isolated laboratory environments
+
+✅ Document research methodology and findings
+
+✅ Follow responsible disclosure protocols
+
+✅ Respect privacy and legal requirements
+
+Safety Protocols:
+✅ Test only on owned or authorized equipment
+
+✅ Maintain detailed research documentation
+
+✅ Implement proper access controls
+
+✅ Follow academic integrity guidelines
+
+✅ Promote ethical security research
+
+🤝 Research Collaboration
+We welcome contributions from:
+
+Academic researchers and institutions
+
+Security professionals with proper credentials
+
+Educational organizations
+
+Government security agencies
+
+Ethical security researchers
+
+Contribution Guidelines:
+All contributions must adhere to ethical standards
+
+Research must be conducted responsibly
+
+Proper authorization must be maintained
+
+Educational value must be demonstrated
+
+Legal compliance is mandatory
+
+📜 License & Usage Rights
+This project is licensed for Educational and Research Use Only.
+
+Usage Restrictions:
+❌ Commercial use prohibited without permission
+
+❌ Modification for malicious purposes strictly forbidden
+
+❌ Redistribution requires explicit authorization
+
+❌ Must comply with all applicable laws and regulations
+
+Educational License:
+Permits use for:
+
+Academic research and teaching
+
+Authorized security testing
+
+Cybersecurity education
+
+Security awareness training
+
+Defensive security development
+
+🔬 Research Impact
+This framework contributes to:
+
+Advancing wireless security knowledge
+
+Training cybersecurity professionals
+
+Improving network defense strategies
+
+Promoting security awareness
+
+Supporting academic security research
+
+Remember: With advanced research capabilities comes significant responsibility. Use this framework ethically, legally, and for educational advancement only.
+
+⚠️ SECURITY REMINDER
+REPORT RESEARCH FINDINGS RESPONSIBLY. USE WITH CAUTION AND PROPER AUTHORIZATION.
+
+For security research collaboration or educational inquiries, contact through appropriate academic or professional channels.
