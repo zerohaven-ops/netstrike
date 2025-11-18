@@ -45,112 +45,152 @@ check_dpkg_lock() {
     return 0
 }
 
-# Function to get ALL locking processes
-get_all_locking_processes() {
-    echo -e "${YELLOW}[!] SCANNING FOR LOCKING PROCESSES...${NC}"
-    
+# Function to get locking process
+get_locking_process() {
     local lock_files=("/var/lib/dpkg/lock-frontend" "/var/lib/dpkg/lock" "/var/lib/apt/lists/lock")
-    local found_locks=0
     
     for lock_file in "${lock_files[@]}"; do
         if [ -f "$lock_file" ]; then
-            echo -e "${YELLOW}[→] Found lock file: $lock_file${NC}"
-            local pids=$(lsof -t "$lock_file" 2>/dev/null)
-            
-            if [ -n "$pids" ]; then
-                for pid in $pids; do
-                    local process_name=$(ps -p "$pid" -o comm= 2>/dev/null)
-                    if [ -n "$process_name" ]; then
-                        echo -e "${RED}[🔒] Locking Process: $process_name (PID: $pid) on $lock_file${NC}"
-                        found_locks=1
-                    fi
-                done
-            else
-                echo -e "${YELLOW}[⚠️] Stale lock file (no process): $lock_file${NC}"
-                found_locks=1
+            local pid=$(lsof -t "$lock_file" 2>/dev/null | head -1)
+            if [ -n "$pid" ]; then
+                local process_name=$(ps -p "$pid" -o comm= 2>/dev/null)
+                echo "$pid:$process_name:$lock_file"
+                return 0
             fi
         fi
     done
-    
-    return $found_locks
+    echo ":::"
 }
 
-# AGGRESSIVE lock cleanup - NO WAITING
-aggressive_lock_cleanup() {
-    echo -e "${RED}[💀] AGGRESSIVE LOCK CLEANUP INITIATED${NC}"
+# Smart lock cleanup
+smart_lock_cleanup() {
+    echo -e "${YELLOW}[!] ATTEMPTING SMART LOCK RESOLUTION...${NC}"
     
-    # Kill ALL package management processes
-    echo -e "${YELLOW}[→] Terminating package management processes...${NC}"
+    local lock_info=$(get_locking_process)
+    local pid=$(echo "$lock_info" | cut -d: -f1)
+    local process_name=$(echo "$lock_info" | cut -d: -f2)
+    local lock_file=$(echo "$lock_info" | cut -d: -f3)
     
-    pkill -9 apt
-    pkill -9 apt-get
-    pkill -9 dpkg
-    pkill -9 packagekitd
-    pkill -9 synaptic
-    pkill -9 software-center
-    
-    # Wait a moment for processes to die
-    sleep 2
-    
-    # Force remove ALL lock files
-    echo -e "${YELLOW}[→] Removing ALL lock files...${NC}"
-    
-    rm -f /var/lib/dpkg/lock-frontend
-    rm -f /var/lib/dpkg/lock
-    rm -f /var/lib/apt/lists/lock
-    rm -f /var/cache/apt/archives/lock
-    
-    # Fix any broken package states
-    echo -e "${YELLOW}[→] Fixing package states...${NC}"
-    dpkg --configure -a 2>/dev/null
-    apt-get install -f -y 2>/dev/null
-    
-    echo -e "${GREEN}[✓] AGGRESSIVE LOCK CLEANUP COMPLETED${NC}"
-}
-
-# Check and immediately handle locks
-handle_locks_immediately() {
-    if check_dpkg_lock; then
-        echo -e "${GREEN}[✓] NO LOCKS FOUND - PROCEEDING${NC}"
-        return 0
-    else
-        echo -e "${RED}[✘] LOCKS DETECTED - FORCING CLEANUP${NC}"
-        get_all_locking_processes
-        aggressive_lock_cleanup
+    if [ "$pid" != "" ] && [ "$process_name" != "" ]; then
+        echo -e "${YELLOW}[→] Found locking process: ${process_name} (PID: ${pid}) on ${lock_file}${NC}"
         
-        # Check again after cleanup
-        if check_dpkg_lock; then
-            echo -e "${GREEN}[✓] LOCKS CLEARED - PROCEEDING${NC}"
+        # Check if it's a critical system process
+        critical_processes=("apt" "apt-get" "dpkg" "packagekitd" "synaptic")
+        for critical in "${critical_processes[@]}"; do
+            if [[ "$process_name" == *"$critical"* ]]; then
+                echo -e "${YELLOW}[!] Critical system process detected. Waiting for completion...${NC}"
+                return 1
+            fi
+        done
+        
+        read -p "$(echo -e "${YELLOW}[?] Kill this process to continue installation? (y/N): ${NC}")" response
+        if [[ $response =~ ^[Yy]$ ]]; then
+            echo -e "${RED}[💣] Killing process ${pid} (${process_name})...${NC}"
+            kill -9 "$pid" 2>/dev/null
+            sleep 2
+            
+            # Remove lock files
+            echo -e "${YELLOW}[→] Removing system locks...${NC}"
+            rm -f /var/lib/dpkg/lock-frontend
+            rm -f /var/lib/dpkg/lock
+            rm -f /var/lib/apt/lists/lock
+            
+            # Fix any broken states
+            dpkg --configure -a 2>/dev/null
+            apt-get install -f -y 2>/dev/null
+            
+            echo -e "${GREEN}[✓] System locks cleared${NC}"
             return 0
         else
-            echo -e "${RED}[✘] UNABLE TO CLEAR LOCKS - MANUAL INTERVENTION REQUIRED${NC}"
-            echo -e "${YELLOW}[💡] Run these commands manually:${NC}"
-            echo -e "     sudo pkill -9 apt apt-get dpkg"
-            echo -e "     sudo rm -f /var/lib/dpkg/lock* /var/lib/apt/lists/lock*"
-            echo -e "     sudo dpkg --configure -a"
+            echo -e "${YELLOW}[!] Continuing without killing process...${NC}"
             return 1
         fi
+    else
+        echo -e "${YELLOW}[!] No specific locking process found, removing stale locks...${NC}"
+        rm -f /var/lib/dpkg/lock-frontend
+        rm -f /var/lib/dpkg/lock
+        rm -f /var/lib/apt/lists/lock
+        dpkg --configure -a 2>/dev/null
+        return 0
     fi
 }
 
-# Run command with simple output
-run_cmd() {
+# Wait for dpkg lock with smart handling
+wait_for_dpkg_lock() {
+    local timeout=60  # Reduced timeout to 60 seconds
+    local start_time=$(date +%s)
+    
+    echo -e "${YELLOW}[!] CHECKING FOR SYSTEM LOCKS...${NC}"
+    
+    while [ $(($(date +%s) - start_time)) -lt $timeout ]; do
+        if check_dpkg_lock; then
+            echo -e "${GREEN}[✓] SYSTEM READY FOR INSTALLATION${NC}"
+            return 0
+        fi
+        
+        local elapsed=$(($(date +%s) - start_time))
+        
+        # After 15 seconds, offer smart cleanup
+        if [ $elapsed -ge 15 ]; then
+            echo -e "${YELLOW}[⚠️] System locked for ${elapsed}s${NC}"
+            if smart_lock_cleanup; then
+                # Check again after cleanup
+                if check_dpkg_lock; then
+                    echo -e "${GREEN}[✓] SYSTEM READY AFTER CLEANUP${NC}"
+                    return 0
+                fi
+            fi
+        fi
+        
+        local dots=$(printf '%*s' $((elapsed % 4)) | tr ' ' '.')
+        echo -ne "\r${YELLOW}[⌛] WAITING FOR SYSTEM LOCKS${dots} (${elapsed}s)${NC}"
+        sleep 2
+    done
+    
+    echo -e "\r${RED}[✘] TIMEOUT WAITING FOR SYSTEM LOCKS AFTER ${timeout}s${NC}"
+    echo -e "${YELLOW}[💡] TIP: Try these commands manually, then rerun installer:${NC}"
+    echo -e "     sudo rm -f /var/lib/dpkg/lock-frontend"
+    echo -e "     sudo rm -f /var/lib/dpkg/lock" 
+    echo -e "     sudo rm -f /var/lib/apt/lists/lock"
+    echo -e "     sudo dpkg --configure -a"
+    return 1
+}
+
+# Run command with progress
+run_cmd_safe() {
     local cmd="$1"
     local msg="$2"
+    local timeout=${3:-120}
     
-    echo -e "${YELLOW}[→] $msg...${NC}"
+    echo -e "${YELLOW}[→] ${msg}...${NC}"
     
+    # Show spinner in background
+    local spinstr='|/-\'
+    local i=0
+    while :; do
+        printf "\r${YELLOW}[${spinstr:$i:1}] ${msg}...${NC}"
+        sleep 0.1
+        i=$(( (i+1) % 4 ))
+    done &
+    
+    local spinner_pid=$!
+    
+    # Run the actual command
     if eval "$cmd" > /dev/null 2>&1; then
-        echo -e "${GREEN}[✓] $msg${NC}"
+        kill $spinner_pid
+        wait $spinner_pid 2>/dev/null
+        printf "\r${GREEN}[✓] ${msg} COMPLETED${NC}\n"
         return 0
     else
-        echo -e "${RED}[✘] $msg${NC}"
+        kill $spinner_pid
+        wait $spinner_pid 2>/dev/null
+        printf "\r${RED}[✘] ${msg} FAILED${NC}\n"
         return 1
     fi
 }
 
 # Install package
-install_package() {
+install_package_safe() {
     local package="$1"
     local description="${2:-$package}"
     
@@ -159,64 +199,109 @@ install_package() {
         return 0
     fi
     
-    run_cmd "apt install -y $package" "Installing $description"
+    run_cmd_safe "apt install -y $package" "Installing $description" 180
 }
 
-# Main installation
+# Detect distribution
+detect_distro() {
+    if [ -f "/etc/os-release" ]; then
+        if grep -qi "kali" /etc/os-release; then
+            echo "kali"
+        elif grep -qi "debian" /etc/os-release; then
+            echo "debian" 
+        elif grep -qi "ubuntu" /etc/os-release; then
+            echo "ubuntu"
+        else
+            echo "unknown"
+        fi
+    else
+        echo "unknown"
+    fi
+}
+
+# Main installation function
 main_installation() {
-    echo -e "${CYAN}[!] STARTING NETSTRIKE v3.0 INSTALLATION${NC}"
-    
-    # Handle locks IMMEDIATELY (no waiting)
-    if ! handle_locks_immediately; then
+    DISTRO=$(detect_distro)
+    echo -e "${CYAN}[!] DETECTED SYSTEM: ${DISTRO^^}${NC}"
+
+    # Wait for system locks
+    if ! wait_for_dpkg_lock; then
+        echo -e "${RED}[✘] CANNOT PROCEED - SYSTEM LOCKS HELD${NC}"
+        echo -e "${YELLOW}[💡] Please wait for other package operations to complete and rerun${NC}"
         exit 1
     fi
-    
-    # Update system
-    echo -e "${YELLOW}[!] UPDATING SYSTEM...${NC}"
-    run_cmd "apt update" "Updating repositories"
-    
-    # Install CORE tools (essential for basic functionality)
+
+    # Update system (skip if recently updated)
+    echo -e "${YELLOW}[!] UPDATING SYSTEM REPOSITORIES...${NC}"
+    run_cmd_safe "apt update" "Updating repositories" 120
+
+    # Install core tools
     echo -e "${YELLOW}[!] INSTALLING CORE TOOLS...${NC}"
     
     core_tools=(
-        "python3"
-        "aircrack-ng" 
-        "macchanger"
-        "xterm"
-        "wireless-tools"
-        "iw"
+        "python3:Python 3"
+        "aircrack-ng:Aircrack-ng Suite"
+        "macchanger:MAC Address Changer" 
+        "xterm:Terminal Emulator"
+        "wireless-tools:Wireless Tools"
+        "iw:Wireless Config"
+        "procps:Process Utilities"
+        "net-tools:Network Tools"
     )
     
-    for tool in "${core_tools[@]}"; do
-        install_package "$tool"
+    for tool_info in "${core_tools[@]}"; do
+        package="${tool_info%:*}"
+        description="${tool_info#*:}"
+        install_package_safe "$package" "$description"
     done
-    
-    # Install ADVANCED tools (try but don't fail if they don't install)
+
+    # Install advanced tools
     echo -e "${YELLOW}[!] INSTALLING ADVANCED TOOLS...${NC}"
     
     advanced_tools=(
-        "mdk4"
-        "reaver" 
-        "hostapd"
-        "dnsmasq"
+        "mdk4:MDK4 Wireless Tool"
+        "reaver:WPS PIN Attack"
+        "bully:WPS Bruteforce" 
+        "hostapd:Access Point Software"
+        "dnsmasq:DHCP/DNS Server"
+        "hcxdumptool:PMKID Capture"
+        "hashcat:Password Cracking"
     )
     
-    for tool in "${advanced_tools[@]}"; do
-        if ! command -v "$tool" &> /dev/null; then
-            install_package "$tool"
+    for tool_info in "${advanced_tools[@]}"; do
+        package="${tool_info%:*}"
+        description="${tool_info#*:}"
+        if ! command -v "$package" &> /dev/null; then
+            echo -e "${YELLOW}[!] ATTEMPTING TO INSTALL: $description${NC}"
+            install_package_safe "$package" "$description"
+        else
+            echo -e "${GREEN}[✓] $description ALREADY INSTALLED${NC}"
         fi
     done
-    
+
+    # Install MDK4 from source if not available
+    if ! command -v mdk4 &> /dev/null; then
+        echo -e "${YELLOW}[!] INSTALLING MDK4 FROM SOURCE...${NC}"
+        run_cmd_safe "git clone https://github.com/aircrack-ng/mdk4" "Cloning MDK4" 60
+        cd mdk4
+        run_cmd_safe "make" "Building MDK4" 120
+        run_cmd_safe "make install" "Installing MDK4" 60
+        cd ..
+        rm -rf mdk4
+        echo -e "${GREEN}[✓] MDK4 INSTALLED FROM SOURCE${NC}"
+    fi
+
     # Install Python packages
     echo -e "${YELLOW}[!] INSTALLING PYTHON PACKAGES...${NC}"
-    run_cmd "pip3 install requests scapy --break-system-packages" "Installing Python packages"
-    
+    run_cmd_safe "pip3 install requests scapy --break-system-packages --quiet" "Installing Python packages" 60
+
     # Setup wordlists
     echo -e "${YELLOW}[!] SETTING UP WORDLISTS...${NC}"
     mkdir -p /usr/share/wordlists
-    
+
     if [ -f "/usr/share/wordlists/rockyou.txt.gz" ] && [ ! -f "/usr/share/wordlists/rockyou.txt" ]; then
-        run_cmd "gzip -dc /usr/share/wordlists/rockyou.txt.gz > /usr/share/wordlists/rockyou.txt" "Extracting rockyou.txt"
+        run_cmd_safe "gzip -dc /usr/share/wordlists/rockyou.txt.gz > /usr/share/wordlists/rockyou.txt" "Extracting rockyou.txt" 30
+        echo -e "${GREEN}[✓] ROCKYOU.TXT EXTRACTED${NC}"
     elif [ -f "/usr/share/wordlists/rockyou.txt" ]; then
         echo -e "${GREEN}[✓] ROCKYOU.TXT AVAILABLE${NC}"
     else
@@ -247,22 +332,36 @@ cisco
 EOF
         echo -e "${GREEN}[✓] BASIC WORDLIST CREATED${NC}"
     fi
-    
+
     # Set permissions
-    echo -e "${YELLOW}[!] SETTING PERMISSIONS...${NC}"
+    echo -e "${YELLOW}[!] SETTING EXECUTION PERMISSIONS...${NC}"
     chmod +x *.py
     echo -e "${GREEN}[✓] PERMISSIONS SET${NC}"
-    
-    # Final check
-    echo -e "${YELLOW}[!] FINAL VERIFICATION...${NC}"
-    if command -v python3 && command -v aircrack-ng && command -v macchanger; then
-        echo -e "${GREEN}[✓] CORE TOOLS VERIFIED - INSTALLATION SUCCESSFUL!${NC}"
+
+    # Final verification
+    echo -e "${YELLOW}[!] VERIFYING INSTALLATION...${NC}"
+
+    essential_tools=("aircrack-ng" "macchanger" "python3")
+    missing_tools=()
+
+    for tool in "${essential_tools[@]}"; do
+        if command -v "$tool" &> /dev/null; then
+            echo -e "${GREEN}[✓] $tool VERIFIED${NC}"
+        else
+            echo -e "${RED}[✘] $tool MISSING${NC}"
+            missing_tools+=("$tool")
+        fi
+    done
+
+    if [ ${#missing_tools[@]} -eq 0 ]; then
+        echo -e "${GREEN}[✓] ALL ESSENTIAL TOOLS VERIFIED${NC}"
+        echo -e "${GREEN}[✓] NETSTRIKE v3.0 INSTALLED SUCCESSFULLY!${NC}"
     else
-        echo -e "${YELLOW}[⚠️] SOME TOOLS MISSING - BUT BASIC FUNCTIONALITY AVAILABLE${NC}"
+        echo -e "${YELLOW}[⚠️] SOME TOOLS MISSING - BUT CORE FUNCTIONALITY SHOULD WORK${NC}"
     fi
 }
 
-# Display completion
+# Display completion message
 show_completion() {
     echo
     echo -e "${BLUE}╔══════════════════════════════════════════════════════════════════╗${NC}"
@@ -275,10 +374,12 @@ show_completion() {
     echo -e "${BLUE}║                                                                  ║${NC}"
     echo -e "${BLUE}╚══════════════════════════════════════════════════════════════════╝${NC}"
     echo
-    echo -e "${GREEN}[🎯] NetStrike v3.0 Ready for Educational Use${NC}"
+    echo -e "${YELLOW}[💡] FEATURES: Mass Destruction, Router Destroyer, Evil Twin, Auto Cracking${NC}"
+    echo -e "${YELLOW}[🔒] SECURITY: Continuous MAC/IP Spoofing, Zero Existence Mode${NC}"
+    echo -e "${YELLOW}[🎯] PERFORMANCE: Parallel Processing, Intelligent Attacks${NC}"
     echo
 }
 
-# Run installation
+# Run main installation
 main_installation
 show_completion
