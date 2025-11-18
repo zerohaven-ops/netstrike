@@ -1,24 +1,56 @@
-EDUCATIONAL USE LICENSE
+NETSTRIKE FRAMEWORK v3.0 ULTIMATE
+EDUCATIONAL USE LICENSE AGREEMENT
 
-Copyright (c) 2024 ZeroHaven Security
+Copyright (c) 2025 ZeroHaven Security. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to use
-the Software for educational and authorized security testing purposes only.
+1. GRANT OF LICENSE
+This License grants you the right to use the NetStrike Framework 
+SOLELY for educational, research, and authorized security testing purposes.
 
-RESTRICTIONS:
-- The Software may not be used for any illegal or unauthorized activities
-- The Software may not be used to disrupt or damage networks without explicit permission
-- The Software may not be modified for malicious purposes
-- The Software may not be sold or used for commercial purposes
-- The Software may not be redistributed without proper attribution
+2. RESTRICTIONS
+You may NOT:
+- Use this software for any illegal or unauthorized purpose
+- Test networks without explicit written permission from owners
+- Modify, distribute, or sell this software for commercial purposes
+- Use in production environments or against unauthorized targets
+- Bypass any security measures without proper authorization
 
-DISCLAIMER:
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. IN NO EVENT
-SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM OR DAMAGES ARISING FROM THE USE
-OF THIS SOFTWARE.
+3. EDUCATIONAL USE
+Permitted uses include:
+- Academic research and teaching
+- Authorized penetration testing
+- Security awareness training
+- Defensive security development
+- Cybersecurity education programs
 
-By using this Software, you agree to use it only for legitimate security
-research, educational purposes, or authorized penetration testing.
+4. NO WARRANTY
+This software is provided "AS IS" without warranty of any kind. 
+The authors assume no liability for damages resulting from the use of this software.
 
-Violation of these terms may result in legal action and termination of access.
+5. LEGAL COMPLIANCE
+You are solely responsible for ensuring your use complies with all applicable:
+- Local, state, and national laws
+- Network usage policies
+- Terms of service agreements
+- Ethical guidelines and standards
+
+6. TERMINATION
+This License terminates automatically if you fail to comply with any provision.
+
+7. GOVERNING LAW
+This License shall be governed by the laws of the jurisdiction where used.
+
+ACCEPTANCE OF TERMS
+By using this software, you acknowledge that:
+- You have read and understood this agreement
+- You agree to be bound by its terms and conditions
+- You will use this software only for legal and authorized purposes
+- You accept full responsibility for your actions
+
+EDUCATIONAL PURPOSE STATEMENT:
+This tool is designed to help security professionals, researchers, and students 
+understand wireless security vulnerabilities and develop appropriate defenses.
+
+Use responsibly and ethically.
+
+ZeroHaven Security | 2024
