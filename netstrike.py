@@ -10,16 +10,26 @@ import sys
 import time
 import signal
 import threading
-from core_engine import NetStrikeCoreV3
-from security_daemon import SecurityDaemon
-from ui_animations import CyberUI
-from scanner_advanced import AdvancedScanner
-from freeze_attack import FreezeAttack
-from mass_destruction import MassDestruction
-from router_destroyer import RouterDestroyer
-from password_cracker import PasswordCracker
-from evil_twin_advanced import EvilTwinAdvanced
-from zero_existence import ZeroExistence
+
+# Add current directory to Python path to ensure imports work
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Now import all modules
+try:
+    from core_engine import NetStrikeCoreV3
+    from security_daemon import SecurityDaemon
+    from ui_animations import CyberUI
+    from scanner_advanced import AdvancedScanner
+    from freeze_attack import FreezeAttack
+    from mass_destruction import MassDestruction
+    from router_destroyer import RouterDestroyer
+    from password_cracker import PasswordCracker
+    from evil_twin_advanced import EvilTwinAdvanced
+    from zero_existence import ZeroExistence
+except ImportError as e:
+    print(f"\033[1;31m[✘] IMPORT ERROR: {e}\033[0m")
+    print("\033[1;33m[!] Make sure all Python files are in the same directory\033[0m")
+    sys.exit(1)
 
 class NetStrikeV3:
     def __init__(self):
@@ -91,8 +101,8 @@ class NetStrikeV3:
 ║                      LIVE SYSTEM STATUS                         ║
 ╠══════════════════════════════════════════════════════════════════╣
 ║                                                                  ║
-║   🖥️  INTERFACE:    {self.core.interface:<25}           ║
-║   📡 MONITOR MODE:  {self.core.mon_interface:<25}           ║
+║   🖥️  INTERFACE:    {self.core.interface if hasattr(self.core, 'interface') else 'NOT SET':<25}           ║
+║   📡 MONITOR MODE:  {self.core.mon_interface if hasattr(self.core, 'mon_interface') else 'NOT SET':<25}           ║
 ║   🔄 MAC SPOOFING:  \033[1;32mACTIVE (5min rotation)\033[1;36m{' ':17}           ║
 ║   🌐 IP ROTATION:   \033[1;32mACTIVE (5min rotation)\033[1;36m{' ':17}           ║
 ║   🎯 STEALTH MODE:  \033[1;32mMAXIMUM\033[1;36m{' ':30}           ║
@@ -136,7 +146,11 @@ class NetStrikeV3:
             spoof_thread.daemon = True
             spoof_thread.start()
             
-            choice = input("\n\033[1;33m[?] SELECT COMBAT OPTION: \033[0m").strip()
+            try:
+                choice = input("\n\033[1;33m[?] SELECT COMBAT OPTION: \033[0m").strip()
+            except (EOFError, KeyboardInterrupt):
+                self.clean_exit()
+                return
             
             if choice == "1":
                 self.freeze_wifi()
@@ -236,5 +250,11 @@ class NetStrikeV3:
             self.clean_exit()
 
 if __name__ == "__main__":
+    # Check if running with sudo
+    if os.geteuid() != 0:
+        print("\033[1;31m[✘] NETSTRIKE v3.0 REQUIRES ROOT PRIVILEGES\033[0m")
+        print("\033[1;33m[💡] Run: sudo python3 netstrike.py\033[0m")
+        sys.exit(1)
+        
     netstrike = NetStrikeV3()
     netstrike.run()
