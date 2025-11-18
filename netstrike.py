@@ -13,12 +13,26 @@ import threading
 from core_engine import NetStrikeCoreV3
 from security_daemon import SecurityDaemon
 from ui_animations import CyberUI
+from scanner_advanced import AdvancedScanner
+from freeze_attack import FreezeAttack
+from mass_destruction import MassDestruction
+from router_destroyer import RouterDestroyer
+from password_cracker import PasswordCracker
+from evil_twin_advanced import EvilTwinAdvanced
+from zero_existence import ZeroExistence
 
 class NetStrikeV3:
     def __init__(self):
         self.core = NetStrikeCoreV3()
         self.security = SecurityDaemon(self.core)
         self.ui = CyberUI()
+        self.scanner = AdvancedScanner(self.core)
+        self.freeze = FreezeAttack(self.core, self.scanner)
+        self.mass_destruction = MassDestruction(self.core, self.scanner)
+        self.router_destroyer = RouterDestroyer(self.core, self.scanner)
+        self.password_cracker = PasswordCracker(self.core, self.scanner)
+        self.evil_twin = EvilTwinAdvanced(self.core, self.scanner)
+        self.zero_existence = ZeroExistence(self.core)
         self.running = True
         
     def display_banner(self):
@@ -146,51 +160,38 @@ class NetStrikeV3:
 
     def freeze_wifi(self):
         """Single target freeze attack"""
-        self.ui.attack_header("FREEZE WI-FI")
-        self.ui.type_effect("🎯 DEPLOYING SINGLE TARGET ANNIHILATION...", 0.03)
-        # Implementation coming in next phase
+        self.freeze.execute_freeze_attack()
         input("\n\033[1;33m[!] PRESS ENTER TO RETURN...\033[0m")
 
     def mass_destruction(self):
         """Mass network destruction"""
-        self.ui.attack_header("MASS DESTRUCTION")
-        self.ui.type_effect("💀 ACTIVATING TOTAL NETWORK BLACKOUT...", 0.03)
-        # Implementation coming in next phase
+        self.mass_destruction.execute_mass_destruction()
         input("\n\033[1;33m[!] PRESS ENTER TO RETURN...\033[0m")
 
     def advanced_scanning(self):
         """Advanced network scanning"""
-        self.ui.attack_header("ADVANCED SCANNING")
-        self.ui.type_effect("📡 INITIATING DEEP NETWORK INTELLIGENCE...", 0.03)
-        # Implementation coming in next phase
+        if self.scanner.deep_network_scan(15):
+            self.scanner.display_scan_results()
         input("\n\033[1;33m[!] PRESS ENTER TO RETURN...\033[0m")
 
     def wifi_destroyer(self):
         """Permanent router damage"""
-        self.ui.attack_header("WI-FI DESTROYER")
-        self.ui.type_effect("🔥 DEPLOYING PERMANENT ROUTER DAMAGE...", 0.03)
-        # Implementation coming in next phase
+        self.router_destroyer.execute_router_destruction()
         input("\n\033[1;33m[!] PRESS ENTER TO RETURN...\033[0m")
 
     def password_cracking(self):
         """Intelligent password cracking"""
-        self.ui.attack_header("PASSWORD CRACKING")
-        self.ui.type_effect("🔓 INITIATING GUARANTEED ACCESS ATTACK...", 0.03)
-        # Implementation coming in next phase
+        self.password_cracker.execute_password_attack()
         input("\n\033[1;33m[!] PRESS ENTER TO RETURN...\033[0m")
 
     def evil_twin_attack(self):
         """Credential harvesting attack"""
-        self.ui.attack_header("EVIL TWIN ATTACK")
-        self.ui.type_effect("👥 DEPLOYING CREDENTIAL HARVESTING...", 0.03)
-        # Implementation coming in next phase
+        self.evil_twin.execute_evil_twin()
         input("\n\033[1;33m[!] PRESS ENTER TO RETURN...\033[0m")
 
     def zero_existence(self):
         """Complete forensic cleanup"""
-        self.ui.attack_header("ZERO EXISTENCE")
-        self.ui.type_effect("🛡️  INITIATING COMPLETE FORENSIC CLEANUP...", 0.03)
-        self.core.zero_existence_cleanup()
+        self.zero_existence.execute_complete_cleanup()
         input("\n\033[1;33m[!] PRESS ENTER TO RETURN...\033[0m")
 
     def clean_exit(self):
