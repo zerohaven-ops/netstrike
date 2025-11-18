@@ -11,6 +11,7 @@ import subprocess
 import threading
 import random
 import hashlib
+import signal
 from typing import List, Dict
 
 class NetStrikeCoreV3:
@@ -24,12 +25,13 @@ class NetStrikeCoreV3:
         self.stealth_mode = True
         self.spoofing_active = False
         self.system_initialized = False
+        self.current_operation = None
         
     def check_root(self):
         """Verify root privileges with cinematic display"""
         if os.geteuid() != 0:
             print("\033[1;31m[✘] NETSTRIKE v3.0 REQUIRES ROOT PRIVILEGES\033[0m")
-            print("\033[1;33m[💡] Run: sudo python3 main.py\033[0m")
+            print("\033[1;33m[💡] Run: sudo python3 netstrike.py\033[0m")
             return False
             
         print("\033[1;32m[✓] ROOT PRIVILEGES CONFIRMED\033[0m")
@@ -194,6 +196,14 @@ class NetStrikeCoreV3:
         except Exception as e:
             print(f"\033[1;31m[✘] IP Spoofing Error: {e}\033[0m")
             return False
+
+    def set_current_operation(self, operation):
+        """Set current operation for signal handling"""
+        self.current_operation = operation
+
+    def clear_current_operation(self):
+        """Clear current operation"""
+        self.current_operation = None
             
     def run_command(self, command, background=False):
         """Execute system command with enhanced error handling"""
@@ -268,7 +278,7 @@ class NetStrikeCoreV3:
         print("\033[1;31m[☢️] INITIATING ZERO EXISTENCE PROTOCOL...\033[0m")
         
         cleanup_steps = [
-            ("TERMINATING ACTIVE PROCESSES", self.stop_all_attacks),
+            ("TERMINATING ALL ATTACK PROCESSES", self.stop_all_attacks),
             ("RESTORING ORIGINAL IDENTITY", self.restore_original_identity),
             ("CLEANING TEMPORARY FILES", self.clean_temporary_files),
             ("WIPING SYSTEM LOGS", self.wipe_system_logs),
@@ -328,3 +338,13 @@ class NetStrikeCoreV3:
             self.stop_all_attacks()
             self.restore_original_identity()
             self.clean_temporary_files()
+
+    def signal_handler(self, sig, frame):
+        """Handle Ctrl+C signal gracefully"""
+        if self.current_operation:
+            print(f"\n\033[1;33m[!] STOPPING CURRENT OPERATION: {self.current_operation}\033[0m")
+            self.stop_all_attacks()
+            self.clear_current_operation()
+        else:
+            print("\n\033[1;33m[!] EXITING NETSTRIKE FRAMEWORK...\033[0m")
+            self.cleanup()
