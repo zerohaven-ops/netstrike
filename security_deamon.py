@@ -7,6 +7,8 @@ Continuous MAC/IP Spoofing & Stealth Operations
 import threading
 import time
 import random
+import subprocess
+import os
 from datetime import datetime
 
 class SecurityDaemon:
