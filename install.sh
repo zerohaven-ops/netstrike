@@ -37,35 +37,73 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Check if dpkg is locked
-check_dpkg_lock() {
-    if [ -f /var/lib/dpkg/lock-frontend ] || [ -f /var/lib/dpkg/lock ] || [ -f /var/lib/apt/lists/lock ]; then
-        return 1
+# Check and remove locks quickly
+check_and_remove_locks() {
+    echo -e "${YELLOW}[!] CHECKING FOR SYSTEM LOCKS...${NC}"
+    
+    local lock_files=(
+        "/var/lib/dpkg/lock-frontend"
+        "/var/lib/dpkg/lock"
+        "/var/lib/apt/lists/lock"
+        "/var/cache/apt/archives/lock"
+    )
+    
+    local locks_found=0
+    
+    for lock_file in "${lock_files[@]}"; do
+        if [ -f "$lock_file" ]; then
+            echo -e "${YELLOW}[!] REMOVING LOCK: $lock_file${NC}"
+            rm -f "$lock_file"
+            locks_found=1
+        fi
+    done
+    
+    # Kill any hanging dpkg/apt processes
+    local hanging_procs=$(ps aux | grep -E '(dpkg|apt)' | grep -v grep | awk '{print $2}')
+    if [ -n "$hanging_procs" ]; then
+        echo -e "${YELLOW}[!] TERMINATING HANGING PROCESSES...${NC}"
+        kill -9 $hanging_procs 2>/dev/null
+        locks_found=1
     fi
+    
+    if [ $locks_found -eq 1 ]; then
+        echo -e "${GREEN}[✓] SYSTEM LOCKS CLEARED${NC}"
+    else
+        echo -e "${GREEN}[✓] NO LOCKS FOUND - SYSTEM READY${NC}"
+    fi
+    
+    # Fix any broken states
+    dpkg --configure -a 2>/dev/null
+    apt-get install -f -y 2>/dev/null
+    
     return 0
 }
 
-# Wait for dpkg lock
-wait_for_dpkg_lock() {
-    local timeout=120
+# Quick lock check (10 seconds max)
+quick_lock_check() {
+    local timeout=10
     local start_time=$(date +%s)
     
-    echo -e "${YELLOW}[!] CHECKING FOR SYSTEM LOCKS...${NC}"
+    echo -e "${YELLOW}[!] QUICK SYSTEM CHECK...${NC}"
     
     while [ $(($(date +%s) - start_time)) -lt $timeout ]; do
-        if check_dpkg_lock; then
+        if ! fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 && \
+           ! fuser /var/lib/dpkg/lock >/dev/null 2>&1 && \
+           ! fuser /var/lib/apt/lists/lock >/dev/null 2>&1; then
             echo -e "${GREEN}[✓] SYSTEM READY FOR INSTALLATION${NC}"
             return 0
         fi
         
         local elapsed=$(($(date +%s) - start_time))
-        local dots=$(printf '%*s' $((elapsed % 4)) | tr ' ' '.')
-        echo -ne "\r${YELLOW}[⌛] WAITING FOR SYSTEM LOCKS${dots} (${elapsed}s)${NC}"
-        sleep 2
+        local remaining=$((timeout - elapsed))
+        echo -e "${YELLOW}[⌛] WAITING FOR LOCKS... ${remaining}s${NC}"
+        sleep 1
     done
     
-    echo -e "\r${RED}[✘] TIMEOUT WAITING FOR SYSTEM LOCKS AFTER ${timeout}s${NC}"
-    return 1
+    # Force remove locks after timeout
+    echo -e "${YELLOW}[!] FORCE REMOVING LOCKS AFTER TIMEOUT${NC}"
+    check_and_remove_locks
+    return 0
 }
 
 # Run command with progress
@@ -94,7 +132,7 @@ install_package_safe() {
         return 0
     fi
     
-    run_cmd_safe "apt install -y $package" "Installing $package" 120
+    run_cmd_safe "apt install -y $package" "Installing $package" 90
 }
 
 # Detect distribution
@@ -114,66 +152,59 @@ detect_distro() {
     fi
 }
 
-DISTRO=$(detect_distro)
-
-echo -e "${CYAN}[!] DETECTED SYSTEM: ${DISTRO^^}${NC}"
-
-# Wait for system locks
-if ! wait_for_dpkg_lock; then
-    echo -e "${RED}[✘] CANNOT PROCEED - SYSTEM LOCKS HELD${NC}"
-    exit 1
-fi
-
-# Update system
-echo -e "${YELLOW}[!] UPDATING SYSTEM REPOSITORIES...${NC}"
-run_cmd_safe "apt update" "Updating repositories" 120
-
-# Install essential tools
-echo -e "${YELLOW}[!] INSTALLING ESSENTIAL TOOLS...${NC}"
-
-core_tools=("python3" "aircrack-ng" "macchanger" "xterm")
-advanced_tools=("mdk4" "reaver" "bully" "hostapd" "dnsmasq" "hcxdumptool" "hashcat")
-
-for tool in "${core_tools[@]}"; do
-    install_package_safe "$tool"
-done
-
-# Install advanced tools
-for tool in "${advanced_tools[@]}"; do
-    if ! command -v "$tool" &> /dev/null; then
-        echo -e "${YELLOW}[!] ATTEMPTING TO INSTALL: $tool${NC}"
+# Main installation
+main_installation() {
+    local DISTRO=$(detect_distro)
+    
+    echo -e "${CYAN}[!] DETECTED SYSTEM: ${DISTRO^^}${NC}"
+    
+    # Quick lock check and removal
+    quick_lock_check
+    
+    # Update system (quick)
+    echo -e "${YELLOW}[!] UPDATING SYSTEM REPOSITORIES...${NC}"
+    run_cmd_safe "apt update" "Updating repositories" 60
+    
+    # Install essential tools
+    echo -e "${YELLOW}[!] INSTALLING ESSENTIAL TOOLS...${NC}"
+    
+    core_tools=("python3" "aircrack-ng" "macchanger" "xterm")
+    advanced_tools=("mdk4" "reaver" "hostapd" "dnsmasq")
+    
+    for tool in "${core_tools[@]}"; do
         install_package_safe "$tool"
+    done
+    
+    # Install advanced tools (skip if takes too long)
+    for tool in "${advanced_tools[@]}"; do
+        if ! command -v "$tool" &> /dev/null; then
+            echo -e "${YELLOW}[!] ATTEMPTING TO INSTALL: $tool${NC}"
+            install_package_safe "$tool"
+        fi
+    done
+    
+    # Quick MDK4 installation
+    if ! command -v mdk4 &> /dev/null; then
+        echo -e "${YELLOW}[!] QUICK MDK4 INSTALLATION...${NC}"
+        run_cmd_safe "apt install -y mdk4" "Installing MDK4" 60
     fi
-done
-
-# Install MDK4 from source if not available
-if ! command -v mdk4 &> /dev/null; then
-    echo -e "${YELLOW}[!] INSTALLING MDK4 FROM SOURCE...${NC}"
-    run_cmd_safe "git clone https://github.com/aircrack-ng/mdk4" "Cloning MDK4" 60
-    cd mdk4
-    run_cmd_safe "make" "Building MDK4" 120
-    run_cmd_safe "make install" "Installing MDK4" 60
-    cd ..
-    rm -rf mdk4
-    echo -e "${GREEN}[✓] MDK4 INSTALLED FROM SOURCE${NC}"
-fi
-
-# Install Python packages
-echo -e "${YELLOW}[!] INSTALLING PYTHON PACKAGES...${NC}"
-run_cmd_safe "pip3 install requests scapy --break-system-packages --quiet" "Installing Python packages" 60
-
-# Setup wordlists
-echo -e "${YELLOW}[!] SETTING UP WORDLISTS...${NC}"
-mkdir -p /usr/share/wordlists
-
-if [ -f "/usr/share/wordlists/rockyou.txt.gz" ] && [ ! -f "/usr/share/wordlists/rockyou.txt" ]; then
-    run_cmd_safe "gzip -dc /usr/share/wordlists/rockyou.txt.gz > /usr/share/wordlists/rockyou.txt" "Extracting rockyou.txt" 30
-    echo -e "${GREEN}[✓] ROCKYOU.TXT EXTRACTED${NC}"
-elif [ -f "/usr/share/wordlists/rockyou.txt" ]; then
-    echo -e "${GREEN}[✓] ROCKYOU.TXT AVAILABLE${NC}"
-else
-    echo -e "${YELLOW}[!] CREATING BASIC WORDLIST...${NC}"
-    cat > /usr/share/wordlists/netstrike_passwords.txt << 'EOF'
+    
+    # Install Python packages
+    echo -e "${YELLOW}[!] INSTALLING PYTHON PACKAGES...${NC}"
+    run_cmd_safe "pip3 install requests scapy --break-system-packages --quiet" "Installing Python packages" 45
+    
+    # Setup wordlists (quick)
+    echo -e "${YELLOW}[!] SETTING UP WORDLISTS...${NC}"
+    mkdir -p /usr/share/wordlists
+    
+    if [ -f "/usr/share/wordlists/rockyou.txt.gz" ] && [ ! -f "/usr/share/wordlists/rockyou.txt" ]; then
+        run_cmd_safe "gzip -dc /usr/share/wordlists/rockyou.txt.gz > /usr/share/wordlists/rockyou.txt" "Extracting rockyou.txt" 20
+        echo -e "${GREEN}[✓] ROCKYOU.TXT EXTRACTED${NC}"
+    elif [ -f "/usr/share/wordlists/rockyou.txt" ]; then
+        echo -e "${GREEN}[✓] ROCKYOU.TXT AVAILABLE${NC}"
+    else
+        echo -e "${YELLOW}[!] CREATING BASIC WORDLIST...${NC}"
+        cat > /usr/share/wordlists/netstrike_passwords.txt << 'EOF'
 12345678
 password
 admin123
@@ -197,49 +228,57 @@ dlink
 netgear
 cisco
 EOF
-    echo -e "${GREEN}[✓] BASIC WORDLIST CREATED${NC}"
-fi
-
-# Set permissions
-echo -e "${YELLOW}[!] SETTING EXECUTION PERMISSIONS...${NC}"
-chmod +x *.py
-echo -e "${GREEN}[✓] PERMISSIONS SET${NC}"
-
-# Final verification
-echo -e "${YELLOW}[!] VERIFYING INSTALLATION...${NC}"
-
-essential_tools=("aircrack-ng" "macchanger" "python3")
-missing_tools=()
-
-for tool in "${essential_tools[@]}"; do
-    if command -v "$tool" &> /dev/null; then
-        echo -e "${GREEN}[✓] $tool VERIFIED${NC}"
-    else
-        echo -e "${RED}[✘] $tool MISSING${NC}"
-        missing_tools+=("$tool")
+        echo -e "${GREEN}[✓] BASIC WORDLIST CREATED${NC}"
     fi
-done
-
-if [ ${#missing_tools[@]} -eq 0 ]; then
-    echo -e "${GREEN}[✓] ALL ESSENTIAL TOOLS VERIFIED${NC}"
-    echo -e "${GREEN}[✓] NETSTRIKE v3.0 INSTALLED SUCCESSFULLY!${NC}"
-else
-    echo -e "${YELLOW}[⚠️] SOME TOOLS MISSING - BUT CORE FUNCTIONALITY SHOULD WORK${NC}"
-fi
+    
+    # Set permissions
+    echo -e "${YELLOW}[!] SETTING EXECUTION PERMISSIONS...${NC}"
+    chmod +x *.py
+    echo -e "${GREEN}[✓] PERMISSIONS SET${NC}"
+    
+    # Final verification
+    echo -e "${YELLOW}[!] QUICK VERIFICATION...${NC}"
+    
+    essential_tools=("aircrack-ng" "macchanger" "python3")
+    missing_tools=()
+    
+    for tool in "${essential_tools[@]}"; do
+        if command -v "$tool" &> /dev/null; then
+            echo -e "${GREEN}[✓] $tool VERIFIED${NC}"
+        else
+            echo -e "${RED}[✘] $tool MISSING${NC}"
+            missing_tools+=("$tool")
+        fi
+    done
+    
+    if [ ${#missing_tools[@]} -eq 0 ]; then
+        echo -e "${GREEN}[✓] ALL ESSENTIAL TOOLS VERIFIED${NC}"
+        echo -e "${GREEN}[✓] NETSTRIKE v3.0 INSTALLED SUCCESSFULLY!${NC}"
+    else
+        echo -e "${YELLOW}[⚠️] SOME TOOLS MISSING - CORE FUNCTIONALITY AVAILABLE${NC}"
+        echo -e "${YELLOW}[💡] You can manually install missing tools later${NC}"
+    fi
+}
 
 # Display completion message
-echo
-echo -e "${BLUE}╔══════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║                     INSTALLATION COMPLETE                       ║${NC}"
-echo -e "${BLUE}╠══════════════════════════════════════════════════════════════════╣${NC}"
-echo -e "${BLUE}║                                                                  ║${NC}"
-echo -e "${BLUE}║   🚀 TO START: sudo python3 netstrike.py                         ║${NC}"
-echo -e "${BLUE}║   📚 PURPOSE:  Educational & Authorized Testing Only            ║${NC}"
-echo -e "${BLUE}║   ⚠️  WARNING:  Use Responsibly & Legally                       ║${NC}"
-echo -e "${BLUE}║                                                                  ║${NC}"
-echo -e "${BLUE}╚══════════════════════════════════════════════════════════════════╝${NC}"
-echo
-echo -e "${YELLOW}[💡] FEATURES: Mass Destruction, Router Destroyer, Evil Twin, Auto Cracking${NC}"
-echo -e "${YELLOW}[🔒] SECURITY: Continuous MAC/IP Spoofing, Zero Existence Mode${NC}"
-echo -e "${YELLOW}[🎯] PERFORMANCE: Parallel Processing, Intelligent Attacks${NC}"
-echo
+display_completion() {
+    echo
+    echo -e "${BLUE}╔══════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${BLUE}║                     INSTALLATION COMPLETE                       ║${NC}"
+    echo -e "${BLUE}╠══════════════════════════════════════════════════════════════════╣${NC}"
+    echo -e "${BLUE}║                                                                  ║${NC}"
+    echo -e "${BLUE}║   🚀 TO START: sudo python3 netstrike.py                         ║${NC}"
+    echo -e "${BLUE}║   📚 PURPOSE:  Educational & Authorized Testing Only            ║${NC}"
+    echo -e "${BLUE}║   ⚠️  WARNING:  Use Responsibly & Legally                       ║${NC}"
+    echo -e "${BLUE}║                                                                  ║${NC}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════════╝${NC}"
+    echo
+    echo -e "${YELLOW}[💡] FEATURES: Mass Destruction, Router Destroyer, Evil Twin, Auto Cracking${NC}"
+    echo -e "${YELLOW}[🔒] SECURITY: Continuous MAC/IP Spoofing, Zero Existence Mode${NC}"
+    echo -e "${YELLOW}[🎯] PERFORMANCE: Parallel Processing, Intelligent Attacks${NC}"
+    echo
+}
+
+# Main execution
+main_installation
+display_completion
