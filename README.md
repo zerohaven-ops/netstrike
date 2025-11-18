@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/Python-3.x-yellow" alt="Python">
 </p>
 
-## ⚠️ LEGAL DISCLAIMER & RESPONSIBLE USE
+## ⚠️ LEGAL DISCLAIMER & RESPONSIBLE USE.
 
 **CRITICAL: This tool is developed STRICTLY for educational, research, and authorized security testing purposes ONLY.**
 
