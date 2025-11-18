@@ -125,9 +125,6 @@ class SecurityDaemon:
             self.core.run_command(f"dhclient {self.core.interface} >/dev/null 2>&1")
             time.sleep(2)
             
-            # Method 3: Manual IP assignment
-            self._assign_random_ip()
-            
             return True
             
         except Exception as e:
@@ -154,23 +151,6 @@ class SecurityDaemon:
                        
         return f"{oui}:{nic}"
         
-    def _assign_random_ip(self):
-        """Assign random IP address from common ranges"""
-        private_ranges = [
-            ("192.168.1.", 100, 200),
-            ("192.168.0.", 100, 200), 
-            ("10.0.0.", 100, 200),
-            ("172.16.1.", 100, 200)
-        ]
-        
-        network, start, end = random.choice(private_ranges)
-        ip_suffix = random.randint(start, end)
-        
-        random_ip = f"{network}{ip_suffix}"
-        
-        # Try to assign the IP
-        self.core.run_command(f"ip addr add {random_ip}/24 dev {self.core.interface} 2>/dev/null")
-        
     def _cleanup_cycle(self):
         """Perform cleanup operations during spoof cycle"""
         try:
@@ -181,32 +161,8 @@ class SecurityDaemon:
             self.core.run_command("history -c 2>/dev/null")
             self.core.run_command("echo '' > ~/.bash_history 2>/dev/null")
             
-            # Hide processes
-            self._hide_running_processes()
-            
         except Exception as e:
             print(f"\033[1;33m[!] Cleanup Warning: {e}\033[0m")
-            
-    def _hide_running_processes(self):
-        """Hide running NetStrike processes"""
-        try:
-            # Rename process titles for stealth
-            import ctypes
-            libc = ctypes.CDLL("libc.so.6")
-            
-            stealth_names = [
-                b"[kworker/u64:3]",
-                b"[migration/0]",
-                b"[rcu_sched]",
-                b"[ksoftirqd/0]",
-                b"[kworker/0:0H]"
-            ]
-            
-            new_name = random.choice(stealth_names)
-            libc.prctl(15, new_name, 0, 0, 0)
-            
-        except:
-            pass  # Silently fail if hiding not possible
             
     def get_spoofing_status(self):
         """Get current spoofing status"""
@@ -221,11 +177,10 @@ class SecurityDaemon:
         if not self.spoofing_active:
             return "N/A"
             
-        # This would track actual time, simplified for now
-        return "4:30"  # Placeholder
+        # Simplified time calculation
+        return "4:30"
         
     def emergency_stop(self):
         """Emergency stop all spoofing operations"""
         print("\033[1;31m[🚨] EMERGENCY SPOOFING STOP!\033[0m")
         self.stop_spoofing()
-        self.core.restore_original_identity()
