@@ -11,10 +11,12 @@ import time
 import signal
 import threading
 
-# Add current directory to Python path to ensure imports work
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Fix Python path issues
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
 
-# Now import all modules
+# Import all modules with error handling
 try:
     from core_engine import NetStrikeCoreV3
     from security_daemon import SecurityDaemon
@@ -28,7 +30,7 @@ try:
     from zero_existence import ZeroExistence
 except ImportError as e:
     print(f"\033[1;31m[✘] IMPORT ERROR: {e}\033[0m")
-    print("\033[1;33m[!] Make sure all Python files are in the same directory\033[0m")
+    print("\033[1;33m[!] Please run the installer first: sudo ./install.sh\033[0m")
     sys.exit(1)
 
 class NetStrikeV3:
@@ -47,27 +49,13 @@ class NetStrikeV3:
         
     def display_banner(self):
         """Cinematic hacker banner with animations"""
-        self.ui.matrix_rain(5)
+        self.ui.matrix_rain(3)
         
         banner = """
 \033[1;32m
 ╔══════════════════════════════════════════════════════════════════╗
 ║                                                                  ║
-║    ███╗   ██╗███████╗████████╗███████╗████████╗██████╗ ██╗██╗   ║
-║    ████╗  ██║██╔════╝╚══██╔══╝██╔════╝╚══██╔══╝██╔══██╗██║██║   ║
-║    ██╔██╗ ██║█████╗     ██║   █████╗     ██║   ██████╔╝██║██║   ║
-║    ██║╚██╗██║██╔══╝     ██║   ██╔══╝     ██║   ██╔══██╗██║██║   ║
-║    ██║ ╚████║███████╗   ██║   ███████╗   ██║   ██║  ██║██║███████╗
-║    ╚═╝  ╚═══╝╚══════╝   ╚═╝   ╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝╚══════╝
-║                                                                  ║
-║    ██████╗ ███████╗██████╗  ██████╗ ████████╗███████╗██████╗     ║
-║    ██╔══██╗██╔════╝██╔══██╗██╔═══██╗╚══██╔══╝██╔════╝██╔══██╗    ║
-║    ██████╔╝█████╗  ██████╔╝██║   ██║   ██║   █████╗  ██████╔╝    ║
-║    ██╔══██╗██╔══╝  ██╔══██╗██║   ██║   ██║   ██╔══╝  ██╔══██╗    ║
-║    ██║  ██║███████╗██║  ██║╚██████╔╝   ██║   ███████╗██║  ██║    ║
-║    ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝ ╚═════╝    ╚═╝   ╚══════╝╚═╝  ╚═╝    ║
-║                                                                  ║
-║                   🚀 v3.0 ULTIMATE EDITION                      ║
+║                   🚀 NETSTRIKE v3.0 ULTIMATE                     ║
 ║                   CYBER WARFARE PLATFORM                        ║
 ║                   MAXIMUM ANONYMITY MODE                        ║
 ║                   ZERO EXISTENCE PROTOCOL                       ║
@@ -91,18 +79,21 @@ class NetStrikeV3:
         
         for seq in sequences:
             self.ui.animated_text(seq, 0.05)
-            time.sleep(0.8)
+            time.sleep(0.5)
             
     def status_dashboard(self):
         """Real-time system status display"""
+        interface = self.core.interface if hasattr(self.core, 'interface') and self.core.interface else "SCANNING..."
+        mon_interface = self.core.mon_interface if hasattr(self.core, 'mon_interface') and self.core.mon_interface else "ACTIVATING..."
+        
         status = f"""
 \033[1;36m
 ╔══════════════════════════════════════════════════════════════════╗
 ║                      LIVE SYSTEM STATUS                         ║
 ╠══════════════════════════════════════════════════════════════════╣
 ║                                                                  ║
-║   🖥️  INTERFACE:    {self.core.interface if hasattr(self.core, 'interface') else 'NOT SET':<25}           ║
-║   📡 MONITOR MODE:  {self.core.mon_interface if hasattr(self.core, 'mon_interface') else 'NOT SET':<25}           ║
+║   🖥️  INTERFACE:    {interface:<25}           ║
+║   📡 MONITOR MODE:  {mon_interface:<25}           ║
 ║   🔄 MAC SPOOFING:  \033[1;32mACTIVE (5min rotation)\033[1;36m{' ':17}           ║
 ║   🌐 IP ROTATION:   \033[1;32mACTIVE (5min rotation)\033[1;36m{' ':17}           ║
 ║   🎯 STEALTH MODE:  \033[1;32mMAXIMUM\033[1;36m{' ':30}           ║
@@ -140,11 +131,6 @@ class NetStrikeV3:
 \033[0m
             """
             print(menu)
-            
-            # Real-time spoofing status animation
-            spoof_thread = threading.Thread(target=self.ui.animate_spoofing_status)
-            spoof_thread.daemon = True
-            spoof_thread.start()
             
             try:
                 choice = input("\n\033[1;33m[?] SELECT COMBAT OPTION: \033[0m").strip()
@@ -184,7 +170,7 @@ class NetStrikeV3:
 
     def advanced_scanning(self):
         """Advanced network scanning"""
-        if self.scanner.deep_network_scan(15):
+        if self.scanner.deep_network_scan(10):
             self.scanner.display_scan_results()
         input("\n\033[1;33m[!] PRESS ENTER TO RETURN...\033[0m")
 
