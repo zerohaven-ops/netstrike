@@ -1,11 +1,12 @@
-# NetStrike Framework v2.0 Ultimate
+# NetStrike Framework v3.0 Ultimate
+
 ## Advanced Wireless Security Research Platform
 ### by ZeroHaven Security
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.0_Ultimate-blue" alt="Version">
+  <img src="https://img.shields.io/badge/Version-3.0_Ultimate-blue" alt="Version">
   <img src="https://img.shields.io/badge/License-Educational-green" alt="License">
-  <img src="https://img.shields.io/badge/Platform-Linux-orange" alt="Platform">
+  <img src="https://img.shields.io/badge/Platform-Kali_Linux-orange" alt="Platform">
   <img src="https://img.shields.io/badge/Python-3.x-yellow" alt="Python">
 </p>
 
@@ -40,7 +41,6 @@
 ### Educational Modules
 - **Wireless Protocol Analysis** - 802.11 security research
 - **Cryptographic Research** - WPA/WPA2 security studies  
-- **Bluetooth Security** - Short-range protocol analysis
 - **Network Defense** - Security control validation
 
 ### Advanced Capabilities
@@ -52,22 +52,22 @@
 ## 📦 Installation & Setup
 
 ### System Requirements:
-- Kali Linux or Debian-based distribution
+- Kali Linux 2023+ (Recommended)
 - Administrative privileges required
 - Wireless network adapter supporting monitor mode
 - Minimum 2GB RAM, 10GB disk space
-- May have some errors Use and report them so i can fix
 
-### Quick Installation (Recommended):
+### Quick Installation:
 ```bash
 git clone https://github.com/zerohaven-ops/netstrike
 cd netstrike
 chmod +x install.sh
 sudo ./install.sh
 
+## 📦 Installation & Setup
 
 Manual Installation:
-bash
+
 # Clone repository
 git clone https://github.com/zerohaven-ops/netstrike
 cd netstrike
@@ -95,15 +95,19 @@ Starting the Framework:
 bash
 sudo python3 netstrike.py
 Main Research Modules:
-Wireless Security Research - Network security assessment
+Freeze WiFi - Single target network analysis
 
-Cryptographic Analysis - Password security research
+Mass Destruction - Multi-network security assessment
 
-Network Discovery - Advanced network enumeration
+Advanced Scanning - Network discovery and enumeration
 
-Security Demonstrations - Educational security scenarios
+Router Analysis - Hardware security research
 
-Safe Termination - Clean environment reset
+Password Research - Cryptographic security studies
+
+Network Simulation - Security control testing
+
+Forensic Cleanup - Privacy protection protocols
 
 Research Guidelines:
 Always obtain written authorization before testing
@@ -120,15 +124,21 @@ Respect privacy and legal boundaries
 Core Framework:
 netstrike.py - Main research interface
 
-core.py - Framework utilities and system management
+core_engine.py - Framework utilities and system management
 
-scanner.py - Network discovery and enumeration
+scanner_advanced.py - Network discovery and enumeration
 
-attacker.py - Security testing modules (authorized use only)
+freeze_attack.py - Network analysis modules
 
-cracker.py - Cryptographic research tools
+mass_destruction.py - Multi-target assessment tools
 
-installer.py - Research environment setup
+router_destroyer.py - Hardware security research
+
+password_cracker.py - Cryptographic research tools
+
+evil_twin_advanced.py - Network simulation research
+
+zero_existence.py - Privacy protection protocols
 
 Educational Focus:
 Each module is designed for:
@@ -169,24 +179,16 @@ Promoting cybersecurity awareness
 🛡️ Security Best Practices
 Research Ethics:
 ✅ Always obtain proper authorization
-
 ✅ Use in isolated laboratory environments
-
 ✅ Document research methodology and findings
-
 ✅ Follow responsible disclosure protocols
-
 ✅ Respect privacy and legal requirements
 
 Safety Protocols:
 ✅ Test only on owned or authorized equipment
-
 ✅ Maintain detailed research documentation
-
 ✅ Implement proper access controls
-
 ✅ Follow academic integrity guidelines
-
 ✅ Promote ethical security research
 
 🤝 Research Collaboration
@@ -218,11 +220,8 @@ This project is licensed for Educational and Research Use Only.
 
 Usage Restrictions:
 ❌ Commercial use prohibited without permission
-
 ❌ Modification for malicious purposes strictly forbidden
-
 ❌ Redistribution requires explicit authorization
-
 ❌ Must comply with all applicable laws and regulations
 
 Educational License:
@@ -257,3 +256,4 @@ Remember: With advanced research capabilities comes significant responsibility. 
 REPORT RESEARCH FINDINGS RESPONSIBLY. USE WITH CAUTION AND PROPER AUTHORIZATION.
 
 For security research collaboration or educational inquiries, contact through appropriate academic or professional channels.
+
