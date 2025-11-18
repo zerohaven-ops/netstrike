@@ -1,0 +1,25 @@
+# NetStrike Framework v3.0 Ultimate
+# Educational & Research Use Only
+
+# Core Dependencies
+aircrack-ng
+macchanger
+mdk4
+reaver
+bully
+hostapd
+dnsmasq
+hcxdumptool
+hashcat
+xterm
+
+# Python Packages
+requests
+scapy
+
+# System Requirements
+python3
+wireless-tools
+iw
+procps
+net-tools
