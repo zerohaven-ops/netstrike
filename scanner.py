@@ -16,15 +16,16 @@ class NetworkScanner:
         self.scanning = False
 
     def wifi_scan(self, duration=15):
-        """Advanced WiFi Scan with Hidden SSID Detection"""
-        print("\033[1;36m[→] Initiating advanced network reconnaissance...\033[0m")
+        """Advanced WiFi Scan with Hidden SSID Detection - ALWAYS FRESH SCAN"""
+        print("\033[1;36m[→] Initiating fresh network reconnaissance...\033[0m")
         
         if not self.core.mon_interface:
             print("\033[1;31m[✘] No monitor interface available\033[0m")
             return False
         
-        # Clear previous data
+        # CRITICAL FIX: Always reset scan data for fresh scan
         self.networks = {}
+        self.clients = {}
         
         print(f"\033[1;36m[📡] Scanning interface: {self.core.mon_interface}\033[0m")
         print(f"\033[1;36m[⏱️] Scan duration: {duration} seconds\033[0m")
@@ -50,6 +51,10 @@ class NetworkScanner:
             
             print("\033[1;32m[✓] Advanced scan initiated\033[0m")
             print("\033[1;36m[🔍] Capturing network data with enhanced detection...\033[0m")
+            
+            # Kill any existing airodump processes to ensure clean start
+            self.core.run_command("killall airodump-ng 2>/dev/null")
+            time.sleep(2)
             
             # Start airodump in background
             scan_process = subprocess.Popen(
