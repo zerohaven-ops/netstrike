@@ -81,19 +81,18 @@ sudo apt install -y python3 aircrack-ng macchanger xterm
 
 # Launch research framework
 sudo python3 netstrike.py
-Troubleshooting:
+
+# Troubleshooting:
 If you encounter installation issues:
-
 Delete the repository folder: rm -rf netstrike
-
 Follow quick installation steps above
-
 Ensure all system packages are updated
 
 🎯 Research Usage
 Starting the Framework:
 bash
 sudo python3 netstrike.py
+
 Main Research Modules:
 Freeze WiFi - Single target network analysis
 
@@ -120,40 +119,17 @@ Follow responsible disclosure practices
 
 Respect privacy and legal boundaries
 
-🔧 Research Components
-Core Framework:
-netstrike.py - Main research interface
-
-core_engine.py - Framework utilities and system management
-
-scanner_advanced.py - Network discovery and enumeration
-
-freeze_attack.py - Network analysis modules
-
-mass_destruction.py - Multi-target assessment tools
-
-router_destroyer.py - Hardware security research
-
-password_cracker.py - Cryptographic research tools
-
-evil_twin_advanced.py - Network simulation research
-
-zero_existence.py - Privacy protection protocols
-
 Educational Focus:
-Each module is designed for:
 
+Each module is designed for
 Cybersecurity curriculum development
-
 Network security research
-
 Defensive security training
-
 Security protocol analysis
-
 Academic security studies
 
 📚 Educational Applications
+
 Academic Use Cases:
 University Cybersecurity Programs - Wireless security courses
 
