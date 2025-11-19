@@ -17,14 +17,14 @@ class NetworkScanner:
         self.current_scan_file = ""
 
     def wifi_scan(self, duration=15):
-        """Wifite2-style continuous scanning with fresh data"""
-        print("\033[1;36m[→] Initializing Wifite2-style network reconnaissance...\033[0m")
+        """advanced-style continuous scanning with fresh data"""
+        print("\033[1;36m[→] Initializing advanced-style network reconnaissance...\033[0m")
         
         if not self.core.mon_interface:
             print("\033[1;31m[✘] No monitor interface available\033[0m")
             return False
         
-        # CRITICAL: Always reset scan data for fresh scan (Wifite2 behavior)
+        # CRITICAL: Always reset scan data for fresh scan (advanced behavior)
         self.networks = {}
         self.clients = {}
         
@@ -34,15 +34,15 @@ class NetworkScanner:
         print(f"\033[1;36m[📡] Scanning interface: {self.core.mon_interface}\033[0m")
         print(f"\033[1;36m[⏱️] Scan duration: {duration} seconds\033[0m")
         
-        return self.wifite2_style_continuous_scan(duration)
+        return self.advanced_style_continuous_scan(duration)
 
-    def wifite2_style_continuous_scan(self, duration):
-        """Wifite2-style continuous scanning implementation"""
+    def advanced_style_continuous_scan(self, duration):
+        """advanced-style continuous scanning implementation"""
         try:
             # Clean up previous scan files
             subprocess.run(f"rm -f {self.current_scan_file}* 2>/dev/null", shell=True)
             
-            # Wifite2-style airodump command
+            # advanced-style airodump command
             cmd = [
                 "airodump-ng",
                 self.core.mon_interface,
@@ -52,7 +52,7 @@ class NetworkScanner:
                 "--band", "abg"
             ]
             
-            print("\033[1;32m[✓] Continuous scan initiated (Wifite2-style)\033[0m")
+            print("\033[1;32m[✓] Continuous scan initiated (advanced-style)\033[0m")
             print("\033[1;36m[🔍] Actively discovering networks...\033[0m")
             
             # Kill any existing airodump processes
@@ -66,7 +66,7 @@ class NetworkScanner:
                 stderr=subprocess.DEVNULL
             )
             
-            # Continuous scanning with live updates (Wifite2 behavior)
+            # Continuous scanning with live updates (advanced behavior)
             start_time = time.time()
             last_network_count = 0
             
@@ -78,9 +78,9 @@ class NetworkScanner:
                 current_networks = self.parse_live_scan_data()
                 current_count = len(current_networks)
                 
-                # Only update if network count changed (Wifite2 optimization)
+                # Only update if network count changed (advanced optimization)
                 if current_count != last_network_count:
-                    self.show_wifite2_style_results(current_networks, elapsed, duration)
+                    self.show_advanced_style_results(current_networks, elapsed, duration)
                     last_network_count = current_count
                 
                 time.sleep(2)
@@ -97,7 +97,7 @@ class NetworkScanner:
             return False
 
     def parse_live_scan_data(self):
-        """Parse live scan data from airodump CSV (Wifite2 method)"""
+        """Parse live scan data from airodump CSV (advanced method)"""
         csv_file = f"{self.current_scan_file}-01.csv"
         networks = {}
         
@@ -164,18 +164,18 @@ class NetworkScanner:
         except Exception:
             return {}
 
-    def show_wifite2_style_results(self, networks, elapsed, total):
-        """Show Wifite2-style scanning results"""
+    def show_advanced_style_results(self, networks, elapsed, total):
+        """Show advanced-style scanning results"""
         os.system('clear')
         
         print("\033[1;35m")
         print("╔══════════════════════════════════════════════════════════════════╗")
         print("║                   🌐 NETSTRIKE NETWORK SCAN                     ║")
-        print("║                   📊 WIFITE2-STYLE SCANNING                     ║")
+        print("║                   📊 advanced-STYLE SCANNING                     ║")
         print("╚══════════════════════════════════════════════════════════════════╝")
         print("\033[0m")
         
-        # Progress with Wifite2 style
+        # Progress with advanced style
         progress = int((elapsed / total) * 50)
         bar = "[" + "█" * progress + "▒" * (50 - progress) + "]"
         print(f"\033[1;36m[⏳] SCAN PROGRESS: {bar} {elapsed}/{total}s\033[0m")
