@@ -111,9 +111,7 @@ class NetStrike:
             if choice == "1":
                 self.cracker.auto_crack_attack()
             elif choice == "2":
-                target = self.select_target_for_cracking()
-                if target:
-                    self.cracker.handshake_capture_auto(target)
+                self.cracker.handshake_capture_menu()
             elif choice == "3":
                 self.cracker.wps_pin_attack()
             elif choice == "4":
@@ -157,14 +155,6 @@ class NetStrike:
                 print("\033[1;31m[✘] Invalid selection\033[0m")
             
             input("\n\033[1;33m[!] Press Enter to continue...\033[0m")
-
-    def select_target_for_cracking(self):
-        """Select target for cracking operations - ALWAYS performs fresh scan"""
-        print("\033[1;36m[→] Performing fresh network scan...\033[0m")
-        # Force fresh scan by calling wifi_scan which resets data
-        if self.scanner.wifi_scan():
-            return self.scanner.select_target()
-        return None
 
     def cleanup(self):
         print("\n\033[1;35m[→] Initiating secure termination protocol...\033[0m")
