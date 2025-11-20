@@ -13,7 +13,6 @@ from core import NetStrikeCore
 from scanner import NetworkScanner
 from attacker import AttackManager
 from cracker import PasswordCracker
-from installer import ToolInstaller
 
 class NetStrike:
     def __init__(self):
@@ -21,7 +20,6 @@ class NetStrike:
         self.scanner = NetworkScanner(self.core)
         self.attacker = AttackManager(self.core, self.scanner)
         self.cracker = PasswordCracker(self.core, self.scanner)
-        self.installer = ToolInstaller(self.core)
         
     def display_banner(self):
         print("""
@@ -60,12 +58,12 @@ class NetStrike:
             print("\033[1;35m║                    🎯 SECURITY OPERATIONS MENU                   ║\033[0m")
             print("\033[1;35m╠══════════════════════════════════════════════════════════════════╣\033[0m")
             print("\033[1;35m║                                                                  ║\033[0m")
-            print("\033[1;35m║ \033[1;36m1\033[0m) \033[1;31m📶 SINGLE WIFI JAMMING\033[0m       - Target specific network        \033[1;35m║\033[0m")
-            print("\033[1;35m║ \033[1;36m2\033[0m) \033[1;31m🌐 MASS WIFI JAMMING\033[0m         - Disable all networks          \033[1;35m║\033[0m")
-            print("\033[1;35m║ \033[1;36m3\033[0m) \033[1;33m🔓 PASSWORD CRACKING\033[0m         - Multiple attack methods       \033[1;35m║\033[0m")
-            print("\033[1;35m║ \033[1;36m4\033[0m) \033[1;34m👥 ADVANCED EVIL TWIN\033[0m        - Professional AP cloning       \033[1;35m║\033[0m")
-            print("\033[1;35m║ \033[1;36m5\033[0m) \033[1;32m📡 NETWORK SCANNER\033[0m           - Advanced detection           \033[1;35m║\033[0m")
-            print("\033[1;35m║ \033[1;36m6\033[0m) \033[1;31m💀 ROUTER DESTROYER\033[0m          - Hardware stress test         \033[1;35m║\033[0m")
+            print("\033[1;35m║ \033[1;36m1\033[0m) \033[1;31m📶 SINGLE WIFI JAMMING\033[0m       - Dual-engine targeted strike    \033[1;35m║\033[0m")
+            print("\033[1;35m║ \033[1;36m2\033[0m) \033[1;31m🌐 MASS WIFI JAMMING\033[0m         - Channel aggregation protocol  \033[1;35m║\033[0m")
+            print("\033[1;35m║ \033[1;36m3\033[0m) \033[1;33m🔓 PASSWORD CRACKING\033[0m         - Cascade engine (4 methods)    \033[1;35m║\033[0m")
+            print("\033[1;35m║ \033[1;36m4\033[0m) \033[1;34m👥 ADVANCED EVIL TWIN\033[0m        - Open AP + verification        \033[1;35m║\033[0m")
+            print("\033[1;35m║ \033[1;36m5\033[0m) \033[1;32m📡 NETWORK SCANNER\033[0m           - Deep reconnaissance          \033[1;35m║\033[0m")
+            print("\033[1;35m║ \033[1;36m6\033[0m) \033[1;31m💀 ROUTER DESTROYER\033[0m          - Hardware stress test          \033[1;35m║\033[0m")
             print("\033[1;35m║ \033[1;36m7\033[0m) \033[1;37m🚪 EXIT & CLEAN\033[0m              - Secure termination           \033[1;35m║\033[0m")
             print("\033[1;35m║                                                                  ║\033[0m")
             print("\033[1;35m╚══════════════════════════════════════════════════════════════════╝\033[0m")
@@ -99,9 +97,9 @@ class NetStrike:
             print("\033[1;35m║                     🔓 CRACKING OPERATIONS                      ║\033[0m")
             print("\033[1;35m╠══════════════════════════════════════════════════════════════════╣\033[0m")
             print("\033[1;35m║                                                                  ║\033[0m")
-            print("\033[1;35m║ \033[1;36m1\033[0m) \033[1;33m⚡ AUTO CRACKING\033[0m            - All methods automatically    \033[1;35m║\033[0m")
-            print("\033[1;35m║ \033[1;36m2\033[0m) \033[1;33m🔍 WPA/WPA2 CRACKING\033[0m        - Handshake capture           \033[1;35m║\033[0m")
-            print("\033[1;35m║ \033[1;36m3\033[0m) \033[1;33m📡 WPS PIN ATTACK\033[0m           - WPS vulnerability           \033[1;35m║\033[0m")
+            print("\033[1;35m║ \033[1;36m1\033[0m) \033[1;33m⚡ AUTO CRACKING\033[0m            - Cascade engine (4 methods)    \033[1;35m║\033[0m")
+            print("\033[1;35m║ \033[1;36m2\033[0m) \033[1;33m🔍 WPA/WPA2 CRACKING\033[0m        - Handshake capture & brute     \033[1;35m║\033[0m")
+            print("\033[1;35m║ \033[1;36m3\033[0m) \033[1;33m📡 WPS PIN ATTACK\033[0m           - WPS vulnerability assessment  \033[1;35m║\033[0m")
             print("\033[1;35m║ \033[1;36m4\033[0m) \033[1;37m↩️  BACK TO MAIN\033[0m                                      \033[1;35m║\033[0m")
             print("\033[1;35m║                                                                  ║\033[0m")
             print("\033[1;35m╚══════════════════════════════════════════════════════════════════╝\033[0m")
@@ -145,7 +143,7 @@ class NetStrike:
             elif choice == "2":
                 print("\033[1;36m[→] Starting deep network analysis...\033[0m")
                 if self.scanner.wifi_scan(20):
-                    self.scanner.display_detailed_scan_results()
+                    self.scanner.display_scan_results()
             elif choice == "3":
                 print("\033[1;36m[→] Scanning for connected clients...\033[0m")
                 self.scanner.client_detection_scan()
@@ -173,12 +171,14 @@ class NetStrike:
             if not self.core.check_root():
                 return
             
+            # Check and install dependencies
+            self.core.check_dependencies()
+            
             # Select wireless interface
             if not self.core.select_interface():
                 print("\033[1;31m[✘] No interface selected - exiting\033[0m")
                 return
             
-            self.installer.install_required_tools()
             self.core.save_original_config()
             
             if self.core.setup_monitor_mode():
