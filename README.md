@@ -3,7 +3,7 @@ Advanced Wireless Security Research Platform
 by ZeroHaven Security
 markdown
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-3.0_Ultimate-blue" alt="Version">
+  <img src="https://img.shields.io/badge/Version-3.0.1_Ultimate-blue" alt="Version">
   <img src="https://img.shields.io/badge/License-Educational_Use_Only-red" alt="License">
   <img src="https://img.shields.io/badge/Platform-Kali_Linux-orange" alt="Platform">
   <img src="https://img.shields.io/badge/Python-3.x-yellow" alt="Python">
@@ -41,7 +41,7 @@ markdown
 
 **DEVELOPERS ASSUME ABSOLUTELY NO LIABILITY FOR MISUSE. USERS ARE SOLELY RESPONSIBLE FOR ENSURING LEGAL COMPLIANCE.**
 
-## 🆕 VERSION 3.0 ULTIMATE - WHAT'S NEW
+## 🆕 VERSION 3.0.1 ULTIMATE - WHAT'S NEW
 
 ### 🎯 ENHANCED PROFESSIONAL FEATURES
 
