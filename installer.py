@@ -12,8 +12,8 @@ class ToolInstaller:
         self.core = core
         self.distribution = self.detect_distribution()
         self.essential_tools = [
-            "aircrack-ng", "macchanger", "iwconfig", "xterm",
-            "mdk4", "reaver", "hostapd", "dnsmasq"
+            "aircrack-ng", "macchanger", "iwconfig", "mdk4", 
+            "reaver", "hostapd", "dnsmasq", "hcxdumptool", "hashcat"
         ]
         
     def detect_distribution(self):
@@ -34,7 +34,7 @@ class ToolInstaller:
 
     def check_tools_availability(self):
         """Check which tools are already available"""
-        print("\033[1;36m[→] Checking tool availability...\033[0m")
+        print("\033[1;36m[→] Checking professional toolkit...\033[0m")
         
         available_tools = []
         missing_tools = []
@@ -42,10 +42,10 @@ class ToolInstaller:
         for tool in self.essential_tools:
             if self.core.run_command(f"command -v {tool}") and self.core.run_command(f"command -v {tool}").returncode == 0:
                 available_tools.append(tool)
-                print(f"\033[1;32m[✓] {tool} available\033[0m")
+                print(f"\033[1;32m[✅] {tool} available\033[0m")
             else:
                 missing_tools.append(tool)
-                print(f"\033[1;33m[!] {tool} missing\033[0m")
+                print(f"\033[1;33m[⚠️] {tool} missing\033[0m")
         
         return available_tools, missing_tools
 
@@ -186,9 +186,9 @@ class ToolInstaller:
         print("\033[1;36m[→] Updating system repositories...\033[0m")
         
         if self.distribution == "kali":
-            cmd = "apt update"
+            cmd = "apt update -y"
         else:
-            cmd = "apt-get update"
+            cmd = "apt-get update -y"
             
         success = self.run_command_with_progress(cmd, "Updating repositories", timeout=120)
         if success:
@@ -366,20 +366,21 @@ class ToolInstaller:
     def create_basic_wordlist(self):
         """Create a basic wordlist"""
         basic_path = "/usr/share/wordlists/netstrike_passwords.txt"
-        print("\033[1;36m[→] Creating basic wordlist...\033[0m")
+        print("\033[1;36m[→] Creating professional wordlist...\033[0m")
         
         passwords = [
             "123456", "password", "12345678", "qwerty", "123456789",
             "12345", "1234", "111111", "1234567", "dragon", "123123",
             "baseball", "abc123", "football", "monkey", "letmein",
-            "admin", "welcome", "passw0rd", "master", "hello"
+            "admin", "welcome", "passw0rd", "master", "hello",
+            "freedom", "whatever", "qazwsx", "trustno1", "jennifer"
         ]
         
         try:
             with open(basic_path, 'w') as f:
                 for pwd in passwords:
                     f.write(pwd + '\n')
-            print("\033[1;32m[✅] Basic wordlist created\033[0m")
+            print("\033[1;32m[✅] Professional wordlist created\033[0m")
             return True
         except Exception as e:
             print(f"\033[1;31m[✘] Wordlist creation failed: {e}\033[0m")
@@ -389,7 +390,7 @@ class ToolInstaller:
         """Verify critical tools are installed"""
         print("\033[1;36m[→] Verifying installation...\033[0m")
         
-        essential_tools = ["aircrack-ng", "macchanger", "iwconfig"]
+        essential_tools = ["aircrack-ng", "macchanger", "iwconfig", "mdk4"]
         
         missing_tools = []
         
