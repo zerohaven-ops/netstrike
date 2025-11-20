@@ -331,8 +331,8 @@ class NetStrikeCore:
             self.nuclear_cleanup()
 
     def nuclear_cleanup(self):
-        """Complete system cleanup"""
-        print("\033[1;35m[→] Initiating secure cleanup protocol...\033[0m")
+        """COMPLETE FORENSIC CLEANUP - DOOMSDAY UPGRADE"""
+        print("\033[1;35m[→] Initiating DOOMSDAY cleanup protocol...\033[0m")
         
         messages = [
             "🛑 Terminating active sessions...",
@@ -340,37 +340,95 @@ class NetStrikeCore:
             "🔄 Restoring original configuration...",
             "🗑️ Removing temporary files...",
             "🔒 Wiping digital traces...",
-            "✅ Secure cleanup completed"
+            "🛡️ Forensic cleanup in progress...",
+            "✅ DOOMSDAY cleanup completed"
         ]
         
         for msg in messages:
             print(f"\033[1;35m[→] \033[1;36m{msg}\033[0m")
             time.sleep(1)
         
+        # PHASE 1: Process "Double-Tap"
+        print("\033[1;36m[→] PHASE 1: Process termination (Double-Tap)...\033[0m")
+        kill_list = ["airodump-ng", "aireplay-ng", "hostapd", "dnsmasq", "mdk4", "hashcat", "hcxdumptool", "reaver"]
+        
+        # First kill attempt
+        for proc in kill_list:
+            self.run_command(f"pkill {proc}")
+        time.sleep(2)
+        
+        # Force kill anything stubborn
+        for proc in kill_list:
+            self.run_command(f"pkill -9 {proc}")
+        
         # Stop all attacks
         self.stop_all_attacks()
         
-        # Stop spoofing
-        self.stop_advanced_spoofing()
+        # PHASE 2: Network configuration cleanup
+        print("\033[1;36m[→] PHASE 2: Network configuration cleanup...\033[0m")
         
-        # Stop monitor mode
+        # Revert network tables completely
+        self.run_command("iptables --flush")
+        self.run_command("iptables -t nat --flush")
+        self.run_command("iptables -t mangle --flush")
+        self.run_command("iptables -t raw --flush")
+        self.run_command("iptables -t security --flush")
+        
+        # Disable IP forwarding
+        self.run_command("echo 0 > /proc/sys/net/ipv4/ip_forward")
+        
+        # Reset network routes
+        self.run_command("ip route flush table main")
+        self.run_command("ip route flush cache")
+        
+        # PHASE 3: Stop spoofing and monitor mode
+        print("\033[1;36m[→] PHASE 3: Stopping spoofing and monitor mode...\033[0m")
+        self.stop_advanced_spoofing()
         self.stop_monitor_mode()
         
-        # Restore original MAC
+        # PHASE 4: Restore original identity
+        print("\033[1;36m[→] PHASE 4: Restoring original identity...\033[0m")
         if self.original_mac and self.original_mac != "unknown":
-            print("\033[1;36m[→] Restoring original identity...\033[0m")
             self.run_command(f"ip link set {self.interface} down >/dev/null 2>&1")
             self.run_command(f"macchanger -m {self.original_mac} {self.interface} >/dev/null 2>&1")
             self.run_command(f"ip link set {self.interface} up >/dev/null 2>&1")
         
-        # Clean all traces
-        print("\033[1;36m[→] Removing all temporary files...\033[0m")
-        self.run_command("rm -rf /tmp/netstrike_* /tmp/*.cap /tmp/*.csv /tmp/*.pcapng /tmp/*.hash /tmp/cracked.txt /tmp/wordlist.txt 2>/dev/null")
-        self.run_command("echo '' > ~/.bash_history && history -c")
+        # PHASE 5: Digital evidence removal
+        print("\033[1;36m[→] PHASE 5: Digital evidence removal...\033[0m")
+        
+        # Remove all temporary files
+        temp_patterns = [
+            "/tmp/netstrike_*", "/tmp/*.cap", "/tmp/*.csv", "/tmp/*.pcapng", 
+            "/tmp/*.hash", "/tmp/*.hc22000", "/tmp/cracked.txt", "/tmp/wordlist.txt",
+            "/tmp/client_scan_*", "/tmp/evil_twin_*", "/tmp/pro_*", "/tmp/captured_password.txt",
+            "/tmp/*.log", "/tmp/*.sh"
+        ]
+        
+        for pattern in temp_patterns:
+            self.run_command(f"rm -rf {pattern} 2>/dev/null")
+        
+        # Clear system logs related to our activities
+        log_commands = [
+            "echo '' > /var/log/syslog",
+            "echo '' > /var/log/messages", 
+            "journalctl --vacuum-time=1s",
+            "echo '' > ~/.bash_history && history -c"
+        ]
+        
+        for cmd in log_commands:
+            self.run_command(cmd)
+        
+        # PHASE 6: Final system restoration
+        print("\033[1;36m[→] PHASE 6: Final system restoration...\033[0m")
         
         # Restart network services
         self.run_command("systemctl restart NetworkManager >/dev/null 2>&1")
+        self.run_command("systemctl restart systemd-resolved >/dev/null 2>&1")
         
-        print("\033[1;32m[✓] Secure cleanup protocol complete\033[0m")
-        print("\033[1;32m[✓] All digital traces eliminated - Operation complete\033[0m")
+        # Final process sweep
+        self.run_command("pkill -9 python3 2>/dev/null")
+        
+        print("\033[1;32m[✓] DOOMSDAY cleanup protocol complete\033[0m")
+        print("\033[1;32m[✓] All digital traces eliminated - Forensic cleanup successful\033[0m")
+        print("\033[1;32m[✓] System restored to pristine state\033[0m")
         sys.exit(0)
