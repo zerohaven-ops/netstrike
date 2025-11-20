@@ -1,173 +1,217 @@
-# NetStrike Framework v3.0 Ultimate
-
-## Advanced Wireless Security Research Platform
-### by ZeroHaven Security
-
+NetStrike Framework v3.0 Ultimate
+Advanced Wireless Security Research Platform
+by ZeroHaven Security
+markdown
 <p align="center">
   <img src="https://img.shields.io/badge/Version-3.0_Ultimate-blue" alt="Version">
-  <img src="https://img.shields.io/badge/License-Educational-green" alt="License">
+  <img src="https://img.shields.io/badge/License-Educational_Use_Only-red" alt="License">
   <img src="https://img.shields.io/badge/Platform-Kali_Linux-orange" alt="Platform">
   <img src="https://img.shields.io/badge/Python-3.x-yellow" alt="Python">
+  <img src="https://img.shields.io/badge/Status-Research_Only-lightgrey" alt="Status">
 </p>
 
-## ⚠️ LEGAL DISCLAIMER & RESPONSIBLE USE.
+## 🚨 LEGAL DISCLAIMER & RESPONSIBLE USE AGREEMENT
 
-**CRITICAL: This tool is developed STRICTLY for educational, research, and authorized security testing purposes ONLY.**
+### ⚠️ CRITICAL LEGAL NOTICE
 
-### 🛡️ Approved Usage:
-- Security research in controlled lab environments
-- Authorized penetration testing with written permission
-- Educational demonstrations in academic settings
-- Personal network security assessment on owned equipment
-- Cybersecurity training and awareness programs
+**THIS SOFTWARE IS PROVIDED STRICTLY FOR EDUCATIONAL, RESEARCH, AND AUTHORIZED SECURITY TESTING PURPOSES ONLY. ANY OTHER USE IS STRICTLY PROHIBITED.**
 
-### 🚫 Strictly Prohibited:
-- Testing networks without explicit owner consent
-- Disrupting public or commercial network services
-- Any unauthorized network interference
-- Malicious activities or cybercrime
-- Violating local laws and regulations
+### 🛡️ APPROVED USAGE SCENARIOS
+- ✅ Security research in controlled lab environments
+- ✅ Authorized penetration testing with **written permission**
+- ✅ Educational demonstrations in academic settings  
+- ✅ Personal network security assessment on **OWNED EQUIPMENT ONLY**
+- ✅ Cybersecurity training with proper authorization
+- ✅ Wireless protocol research and analysis
 
-**Developers assume NO liability for misuse. Users are solely responsible for complying with all applicable laws.**
+### 🚫 STRICTLY PROHIBITED ACTIVITIES
+- ❌ Testing networks without explicit owner consent
+- ❌ Disrupting public or commercial network services
+- ❌ Any unauthorized network access or interference
+- ❌ Malicious activities or cybercrime
+- ❌ Violating local, state, or federal laws
+- ❌ Use against networks you do not own or have explicit permission to test
 
-## 🚀 Enhanced Features
+### 🔒 LEGAL COMPLIANCE REQUIREMENTS
+- Users must comply with all applicable laws including:
+  - Computer Fraud and Abuse Act (CFAA)
+  - Wireless Telegraphy Act
+  - Local telecommunications regulations
+  - Data protection and privacy laws
 
-### Network Security Research
-- **Advanced Wireless Enumeration** - Comprehensive network discovery
-- **Security Vulnerability Assessment** - Wireless protocol analysis
-- **Defensive Security Testing** - Network resilience validation
-- **Privacy Protection Research** - Anonymity and security studies
+**DEVELOPERS ASSUME ABSOLUTELY NO LIABILITY FOR MISUSE. USERS ARE SOLELY RESPONSIBLE FOR ENSURING LEGAL COMPLIANCE.**
 
-### Educational Modules
-- **Wireless Protocol Analysis** - 802.11 security research
-- **Cryptographic Research** - WPA/WPA2 security studies  
-- **Network Defense** - Security control validation
+## 🆕 VERSION 3.0 ULTIMATE - WHAT'S NEW
 
-### Advanced Capabilities
-- **Automated Security Toolchain** - Complete research environment
-- **Real-time Network Monitoring** - Live security assessment
-- **Comprehensive Reporting** - Research documentation
-- **Educational Demonstrations** - Security awareness training
+### 🎯 ENHANCED PROFESSIONAL FEATURES
 
-## 📦 Installation & Setup
+#### 🔧 **Atomic Scanner Engine**
+- **FIXED**: No more "blind scanning" - robust CSV parsing
+- **NEW**: Proper monitor mode verification
+- **ENHANCED**: Real-time network discovery with client mapping
+- **IMPROVED**: Hidden network detection capabilities
 
-### System Requirements:
-- Kali Linux 2023+ (Recommended)
-- Administrative privileges required
-- Wireless network adapter supporting monitor mode
-- Minimum 2GB RAM, 10GB disk space
+#### ⚔️ **Advanced Weapon Systems**
+1. **📶 Dual-Engine WiFi Jamming** - Broadcast + targeted client deauth
+2. **🌐 Channel Aggregation Mass Disruption** - Efficient multi-network targeting
+3. **🔓 Cascade Password Cracking** - PMKID → WPS → Handshake → Brute force
+4. **👥 Open AP Evil Twin** - Professional phishing with verification loops
+5. **💀 Router Stress Testing** - Hardware-level security assessment
+6. **📡 Deep Reconnaissance** - Comprehensive network intelligence
 
-### Quick Installation:
+#### 🚀 **Technical Improvements**
+- **No xterm dependency** - Headless/server compatible
+- **Auto-dependency installation** - Self-contained setup
+- **Advanced process management** - Proper cleanup and stability
+- **Stealth operations** - MAC/IP spoofing with rotation
+- **Professional UI/UX** - Maintained hacker aesthetic
+
+## 📦 INSTALLATION GUIDE
+
+### 🖥️ SYSTEM REQUIREMENTS
+- **OS**: Kali Linux 2023+ (Recommended), Ubuntu 20.04+, Debian 11+
+- **Privileges**: Root/Administrative access required
+- **Hardware**: Wireless adapter supporting monitor mode & packet injection
+- **RAM**: Minimum 2GB, 4GB recommended
+- **Storage**: 10GB available space
+
+### 🚀 QUICK INSTALLATION (RECOMMENDED)
+
 ```bash
-git clone https://github.com/zerohaven-ops/netstrike
+# Clone the repository
+git clone https://github.com/zerohaven-ops/netstrike.git
+
+# Navigate to directory
 cd netstrike
+
+# Make installer executable
 chmod +x install.sh
+
+# Run automated installation
 sudo ./install.sh
 
-## 📦 Installation & Setup
+# Launch the framework
+sudo python3 netstrike.py
 
-Manual Installation:
-
+🔧 MANUAL INSTALLATION (ADVANCED)
+bash
 # Clone repository
-git clone https://github.com/zerohaven-ops/netstrike
+git clone https://github.com/zerohaven-ops/netstrike.git
 cd netstrike
 
 # Set execution permissions
 chmod +x *.py
 
-# Install core dependencies
+# Install core dependencies manually
 sudo apt update
-sudo apt install -y python3 aircrack-ng macchanger xterm
+sudo apt install -y python3 aircrack-ng macchanger mdk4 hostapd dnsmasq hcxdumptool hashcat
 
-# Launch research framework
+# Install Python packages
+pip3 install requests scapy
+
+# Launch framework
 sudo python3 netstrike.py
 
-# Troubleshooting:
-If you encounter installation issues:
-Delete the repository folder: rm -rf netstrike
-Follow quick installation steps above
-Ensure all system packages are updated
+🔄 REINSTALLATION PROCEDURE
+If you encounter issues or want a clean installation:
+bash
+# Complete removal
+sudo rm -rf netstrike
 
-🎯 Research Usage
-Starting the Framework:
+# Fresh clone
+git clone https://github.com/zerohaven-ops/netstrike.git
+cd netstrike
+
+# Fresh installation
+chmod +x install.sh
+sudo ./install.sh
+
+# Verify installation
+sudo python3 netstrike.py
+🐛 TROUBLESHOOTING COMMON ISSUES
+bash
+# If monitor mode fails:
+sudo airmon-ng check kill
+sudo systemctl restart NetworkManager
+
+# If dependencies are missing:
+sudo apt update && sudo apt upgrade -y
+sudo ./install.sh
+
+# If permission errors:
+sudo chmod +x *.py
+sudo python3 netstrike.py
+
+# If wireless card not detected:
+sudo airmon-ng
+sudo rfkill unblock all
+
+```
+🎯 RESEARCH USAGE GUIDE
+🚀 STARTING THE FRAMEWORK
 bash
 sudo python3 netstrike.py
+🔬 MAIN RESEARCH MODULES
+📶 Single Target Analysis - Focused network security assessment
 
-Main Research Modules:
-Freeze WiFi - Single target network analysis
+🌐 Multi-Network Research - Broad spectrum security analysis
 
-Mass Destruction - Multi-network security assessment
+🔓 Cryptographic Research - Password security studies
 
-Advanced Scanning - Network discovery and enumeration
+👥 AP Replication Research - Rogue access point analysis
 
-Router Analysis - Hardware security research
+📡 Network Discovery - Wireless environment mapping
 
-Password Research - Cryptographic security studies
+💀 Hardware Stress Testing - Router security resilience
 
-Network Simulation - Security control testing
+🛡️ Privacy Protection - Anonymity and forensic cleanup
 
-Forensic Cleanup - Privacy protection protocols
+📝 RESEARCH METHODOLOGY
+Ethical Testing Framework:
+text
+1. Authorization → Obtain written permission
+2. Scope Definition → Define testing boundaries  
+3. Documentation → Record research methodology
+4. Execution → Conduct authorized testing
+5. Analysis → Evaluate security findings
+6. Reporting → Document research outcomes
+7. Cleanup → Restore systems to original state
+Laboratory Environment Setup:
+Isolated test network
 
-Research Guidelines:
-Always obtain written authorization before testing
+Owned equipment only
 
-Use exclusively in controlled laboratory environments
+Controlled environment
 
-Document findings for educational purposes
+No production systems
 
-Follow responsible disclosure practices
+Proper documentation
 
-Respect privacy and legal boundaries
+🎓 EDUCATIONAL APPLICATIONS
+🏫 ACADEMIC USE CASES
+University Programs: Cybersecurity curriculum development
 
-Educational Focus:
+Security Research: Wireless protocol vulnerability analysis
 
-Each module is designed for
-Cybersecurity curriculum development
-Network security research
-Defensive security training
-Security protocol analysis
-Academic security studies
+Corporate Training: Employee security awareness programs
 
-📚 Educational Applications
+Government: Authorized defense and security testing
 
-Academic Use Cases:
-University Cybersecurity Programs - Wireless security courses
+Conferences: Educational security demonstrations
 
-Security Research Labs - Protocol vulnerability research
+🔬 RESEARCH OBJECTIVES
+Understanding 802.11 security mechanisms
 
-Corporate Security Training - Employee awareness programs
-
-Government Security Agencies - Authorized defense testing
-
-Security Conferences - Educational demonstrations
-
-Research Objectives:
-Understanding wireless security vulnerabilities
-
-Developing improved defense mechanisms
+Developing improved defensive strategies
 
 Training next-generation security professionals
 
-Advancing network security protocols
+Advancing wireless security protocols
 
-Promoting cybersecurity awareness
+Promoting cybersecurity awareness and education
 
-🛡️ Security Best Practices
-Research Ethics:
-✅ Always obtain proper authorization
-✅ Use in isolated laboratory environments
-✅ Document research methodology and findings
-✅ Follow responsible disclosure protocols
-✅ Respect privacy and legal requirements
-
-Safety Protocols:
-✅ Test only on owned or authorized equipment
-✅ Maintain detailed research documentation
-✅ Implement proper access controls
-✅ Follow academic integrity guidelines
-✅ Promote ethical security research
-
-🤝 Research Collaboration
+🤝 CONTRIBUTION & COLLABORATION
+🎯 CONTRIBUTION GUIDELINES
 We welcome contributions from:
 
 Academic researchers and institutions
@@ -176,14 +220,14 @@ Security professionals with proper credentials
 
 Educational organizations
 
-Government security agencies
-
 Ethical security researchers
 
-Contribution Guidelines:
+Government security agencies
+
+📋 CONTRIBUTION REQUIREMENTS
 All contributions must adhere to ethical standards
 
-Research must be conducted responsibly
+Research must be conducted responsibly and legally
 
 Proper authorization must be maintained
 
@@ -191,29 +235,31 @@ Educational value must be demonstrated
 
 Legal compliance is mandatory
 
-📜 License & Usage Rights
+📜 LICENSE & USAGE RIGHTS
+🔒 EDUCATIONAL LICENSE
 This project is licensed for Educational and Research Use Only.
 
-Usage Restrictions:
-❌ Commercial use prohibited without permission
-❌ Modification for malicious purposes strictly forbidden
-❌ Redistribution requires explicit authorization
-❌ Must comply with all applicable laws and regulations
-
-Educational License:
-Permits use for:
-
+Permitted Uses:
 Academic research and teaching
 
-Authorized security testing
+Authorized security testing with permission
 
-Cybersecurity education
+Cybersecurity education and training
 
-Security awareness training
+Security awareness programs
 
 Defensive security development
 
-🔬 Research Impact
+Strictly Prohibited:
+Commercial use without explicit permission
+
+Modification for malicious purposes
+
+Unauthorized redistribution
+
+Any illegal or unethical activities
+
+🔬 RESEARCH IMPACT
 This framework contributes to:
 
 Advancing wireless security knowledge
@@ -226,10 +272,31 @@ Promoting security awareness
 
 Supporting academic security research
 
-Remember: With advanced research capabilities comes significant responsibility. Use this framework ethically, legally, and for educational advancement only.
+⚠️ FINAL SECURITY REMINDER
+REMEMBER: With advanced research capabilities comes significant responsibility.
 
-⚠️ SECURITY REMINDER
-REPORT RESEARCH FINDINGS RESPONSIBLY. USE WITH CAUTION AND PROPER AUTHORIZATION.
+Always obtain proper authorization
 
-For security research collaboration or educational inquiries, contact through appropriate academic or professional channels.
+Use exclusively in controlled environments
 
+Document findings responsibly
+
+Follow ethical disclosure practices
+
+Respect privacy and legal boundaries
+
+Report security research findings responsibly. Use with extreme caution and proper authorization.
+
+<p align="center"> <strong>For legitimate security research collaboration or educational inquiries,</strong><br> <strong>contact through appropriate academic or professional channels only.</strong> </p><p align="center"> <em>Last Updated:11/20/2025 | Version: 3.0 Ultimate</em> </p> 
+
+```
+🔧 QUICK DEPLOYMENT COMMANDS
+bash
+# One-line installation (copy and paste):
+git clone https://github.com/zerohaven-ops/netstrike.git && cd netstrike && chmod +x install.sh && sudo ./install.sh && sudo python3 netstrike.py
+
+# Complete reinstallation:
+sudo rm -rf netstrike && git clone https://github.com/zerohaven-ops/netstrike.git && cd netstrike && chmod +x install.sh && sudo ./install.sh
+
+# Quick launch (after installation):
+cd netstrike && sudo python3 netstrike.py
