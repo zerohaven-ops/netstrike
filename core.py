@@ -29,6 +29,29 @@ class NetStrikeCore:
         print("\033[1;32m[✓] Root privileges confirmed\033[0m")
         return True
 
+    def check_dependencies(self):
+        """Check and install required dependencies"""
+        print("\033[1;36m[→] Checking professional toolkit...\033[0m")
+        
+        essential_tools = ["aircrack-ng", "macchanger", "iwconfig", "mdk4", "hostapd", "dnsmasq"]
+        missing_tools = []
+        
+        for tool in essential_tools:
+            result = self.run_command(f"command -v {tool}")
+            if not result or result.returncode != 0:
+                missing_tools.append(tool)
+                print(f"\033[1;33m[⚠️] {tool} missing\033[0m")
+            else:
+                print(f"\033[1;32m[✅] {tool} available\033[0m")
+        
+        if missing_tools:
+            print("\033[1;36m[→] Installing missing professional tools...\033[0m")
+            for tool in missing_tools:
+                self.run_command(f"apt install -y {tool} > /dev/null 2>&1")
+                print(f"\033[1;32m[✅] {tool} installed\033[0m")
+        
+        return True
+
     def set_current_operation(self, operation):
         """Set current operation for signal handling"""
         self.current_operation = operation
@@ -287,8 +310,8 @@ class NetStrikeCore:
         
         # Kill any remaining attack processes
         kill_commands = [
-            "killall airodump-ng aireplay-ng mdk4 xterm reaver bully wash 2>/dev/null",
-            "pkill -f 'mdk4|aireplay-ng|airodump-ng|hostapd|dnsmasq' 2>/dev/null",
+            "killall airodump-ng aireplay-ng mdk4 reaver bully wash hostapd dnsmasq 2>/dev/null",
+            "pkill -f 'mdk4|aireplay-ng|airodump-ng|hostapd|dnsmasq|hcxdumptool|hashcat' 2>/dev/null",
             "pkill -9 -f 'airodump-ng|aireplay-ng' 2>/dev/null"
         ]
         
@@ -342,7 +365,7 @@ class NetStrikeCore:
         
         # Clean all traces
         print("\033[1;36m[→] Removing all temporary files...\033[0m")
-        self.run_command("rm -rf /tmp/netstrike_* /tmp/*.cap /tmp/*.csv /tmp/cracked.txt /tmp/wordlist.txt 2>/dev/null")
+        self.run_command("rm -rf /tmp/netstrike_* /tmp/*.cap /tmp/*.csv /tmp/*.pcapng /tmp/*.hash /tmp/cracked.txt /tmp/wordlist.txt 2>/dev/null")
         self.run_command("echo '' > ~/.bash_history && history -c")
         
         # Restart network services
