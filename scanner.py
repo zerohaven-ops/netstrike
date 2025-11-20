@@ -90,7 +90,7 @@ class NetworkScanner:
             self.show_professional_results(networks, elapsed, total)
 
     def parse_professional_scan_data(self):
-        """Robust CSV parsing using python's csv library"""
+        """ATOMIC ROW PARSING - FIXED VERSION"""
         csv_file = f"{self.current_scan_file}-01.csv"
         networks = {}
         
@@ -101,85 +101,101 @@ class NetworkScanner:
             with open(csv_file, 'r', encoding='utf-8', errors='replace') as f:
                 lines = f.readlines()
                 
-                # Find separator between APs and Clients
-                separator_index = len(lines)
-                for i, line in enumerate(lines):
-                    if line.strip() == '' or 'Station MAC' in line:
-                        separator_index = i
-                        break
+            # Find separator between APs and Clients
+            separator_index = len(lines)
+            for i, line in enumerate(lines):
+                if line.strip() == '' or 'Station MAC' in line:
+                    separator_index = i
+                    break
 
-                # Parse APs with CSV reader for robustness
-                reader = csv.reader(lines[:separator_index])
-                network_count = 0
-                
-                for row in reader:
-                    if not row or len(row) < 14 or row[0].strip() == 'BSSID':
+            # ATOMIC PARSING: Process each row independently
+            network_count = 0
+            
+            for line in lines[:separator_index]:
+                # ATOMIC: Each row processed in isolation
+                try:
+                    # Skip header and empty lines
+                    if not line.strip() or 'BSSID' in line:
                         continue
                     
-                    bssid = row[0].strip()
+                    # Manual CSV parsing for robustness
+                    row = [field.strip() for field in line.split(',')]
+                    if len(row) < 14:
+                        continue
+                        
+                    bssid = row[0]
                     if not self.is_valid_bssid(bssid):
                         continue
 
-                    # Safe extraction with error handling
-                    try:
-                        channel = row[3].strip() if len(row) > 3 else "1"
-                        speed = row[4].strip() if len(row) > 4 else "?"
-                        encryption = row[5].strip() if len(row) > 5 else "OPN"
-                        power = row[8].strip() if len(row) > 8 else "-1"
-                        beacons = row[9].strip() if len(row) > 9 else "0"
-                        essid = row[13].strip() if len(row) > 13 else ""
-                        
-                        # Handle hidden networks
-                        if not essid or essid in ["", "--"]:
-                            essid = self.detect_hidden_ssid(bssid, channel)
-                        
-                        network_count += 1
-                        networks[network_count] = {
-                            'bssid': bssid,
-                            'channel': channel,
-                            'power': power,
-                            'encryption': encryption,
-                            'essid': essid,
-                            'speed': speed,
-                            'beacons': beacons,
-                            'clients': 0  # Will be updated
-                        }
-                    except IndexError:
-                        continue
-                
-                # Parse clients
-                self.parse_client_data(lines[separator_index:])
-                
-                # Update client counts
-                for net_id, net_info in networks.items():
-                    net_info['clients'] = self.get_client_count(net_info['bssid'])
-                
+                    # Extract fields with safe defaults
+                    channel = row[3] if len(row) > 3 else "1"
+                    speed = row[4] if len(row) > 4 else "?"
+                    encryption = row[5] if len(row) > 5 else "OPN"
+                    power = row[8] if len(row) > 8 else "-1"
+                    beacons = row[9] if len(row) > 9 else "0"
+                    essid = row[13] if len(row) > 13 else ""
+                    
+                    # Handle hidden networks
+                    if not essid or essid in ["", "--"]:
+                        essid = "🚫 HIDDEN_NETWORK"
+                    
+                    network_count += 1
+                    networks[network_count] = {
+                        'bssid': bssid,
+                        'channel': channel,
+                        'power': power,
+                        'encryption': encryption,
+                        'essid': essid,
+                        'speed': speed,
+                        'beacons': beacons,
+                        'clients': 0
+                    }
+                    
+                except Exception as e:
+                    # ATOMIC: Skip only the bad row, continue processing
+                    continue
+            
+            # Parse clients with same atomic approach
+            self.parse_client_data_atomic(lines[separator_index:])
+            
+            # Update client counts
+            for net_id, net_info in networks.items():
+                net_info['clients'] = self.get_client_count(net_info['bssid'])
+            
             return networks
             
         except Exception as e:
+            print(f"\033[1;33m[⚠️] Scan data parsing issue: {e}\033[0m")
             return {}
 
-    def parse_client_data(self, client_lines):
-        """Parse client data professionally"""
-        try:
-            reader = csv.reader(client_lines)
-            for row in reader:
-                if not row or len(row) < 6 or row[0].strip() == 'Station MAC':
+    def parse_client_data_atomic(self, client_lines):
+        """Atomic client data parsing"""
+        self.clients = {}
+        
+        for line in client_lines:
+            try:
+                if not line.strip() or 'Station MAC' in line:
                     continue
                 
-                client_mac = row[0].strip()
-                if self.is_valid_bssid(client_mac):
-                    power = row[3].strip() if len(row) > 3 else "-1"
-                    packets = row[4].strip() if len(row) > 4 else "0"
-                    bssid = row[5].strip() if len(row) > 5 else "Not Associated"
-                    
-                    self.clients[client_mac] = {
-                        'power': power,
-                        'packets': packets,
-                        'bssid': bssid
-                    }
-        except:
-            pass
+                row = [field.strip() for field in line.split(',')]
+                if len(row) < 6:
+                    continue
+                
+                client_mac = row[0]
+                if not self.is_valid_bssid(client_mac):
+                    continue
+
+                power = row[3] if len(row) > 3 else "-1"
+                packets = row[4] if len(row) > 4 else "0"
+                bssid = row[5] if len(row) > 5 else "Not Associated"
+                
+                self.clients[client_mac] = {
+                    'power': power,
+                    'packets': packets,
+                    'bssid': bssid
+                }
+            except Exception:
+                continue
 
     def detect_hidden_ssid(self, bssid, channel):
         """Professional hidden SSID detection"""
@@ -217,7 +233,7 @@ class NetworkScanner:
         print(f"\033[1;32m[✅] NETWORKS: {len(networks)} | CLIENTS: {len(self.clients)}\033[0m")
         print()
         
-        # Sort networks by signal strength (like wifite)
+        # Sort networks by signal strength
         sorted_networks = sorted(networks.items(), key=lambda x: int(x[1]['power']) if x[1]['power'].lstrip('-').isdigit() else 0, reverse=True)
         
         if sorted_networks:
@@ -285,7 +301,7 @@ class NetworkScanner:
         return True
 
     def parse_final_professional_scan(self, csv_file):
-        """Final professional scan parsing"""
+        """Final professional scan parsing with atomic processing"""
         networks = {}
         try:
             with open(csv_file, 'r', encoding='utf-8', errors='replace') as f:
@@ -297,22 +313,25 @@ class NetworkScanner:
                     separator_index = i
                     break
 
-            reader = csv.reader(lines[:separator_index])
             network_count = 0
             
-            for row in reader:
-                if not row or len(row) < 14 or row[0].strip() == 'BSSID':
-                    continue
-                
-                bssid = row[0].strip()
-                if not self.is_valid_bssid(bssid):
-                    continue
-
+            for line in lines[:separator_index]:
                 try:
-                    channel = row[3].strip() if len(row) > 3 else "1"
-                    encryption = row[5].strip() if len(row) > 5 else "OPN"
-                    power = row[8].strip() if len(row) > 8 else "-1"
-                    essid = row[13].strip() if len(row) > 13 else ""
+                    if not line.strip() or 'BSSID' in line:
+                        continue
+                    
+                    row = [field.strip() for field in line.split(',')]
+                    if len(row) < 14:
+                        continue
+                    
+                    bssid = row[0]
+                    if not self.is_valid_bssid(bssid):
+                        continue
+
+                    channel = row[3] if len(row) > 3 else "1"
+                    encryption = row[5] if len(row) > 5 else "OPN"
+                    power = row[8] if len(row) > 8 else "-1"
+                    essid = row[13] if len(row) > 13 else ""
                     
                     if not essid or essid == "--":
                         essid = "🚫 HIDDEN_NETWORK"
@@ -326,7 +345,7 @@ class NetworkScanner:
                         'essid': essid,
                         'clients': self.get_client_count(bssid)
                     }
-                except IndexError:
+                except Exception:
                     continue
                     
             return networks
@@ -425,3 +444,91 @@ class NetworkScanner:
         except ValueError:
             print("\033[1;31m[✘] Invalid input\033[0m")
             return None
+
+    def client_detection_scan(self):
+        """Deep client reconnaissance"""
+        print("\033[1;36m[→] Starting deep client reconnaissance...\033[0m")
+        
+        if not self.networks:
+            print("\033[1;31m[✘] No networks available for client scan\033[0m")
+            return
+        
+        target = self.select_target()
+        if not target:
+            return
+        
+        print(f"\033[1;36m[🔍] Scanning for clients on: {target['essid']}\033[0m")
+        
+        client_file = f"/tmp/client_scan_{target['bssid'].replace(':', '')}"
+        
+        # Start targeted client scan
+        scan_proc = self.core.run_command(
+            f"airodump-ng --bssid {target['bssid']} -c {target['channel']} -w {client_file} --output-format csv {self.core.mon_interface}",
+            background=True
+        )
+        
+        print("\033[1;36m[⏱️] Scanning for 15 seconds...\033[0m")
+        time.sleep(15)
+        
+        if scan_proc:
+            scan_proc.terminate()
+        
+        # Parse client results
+        client_csv = f"{client_file}-01.csv"
+        if os.path.exists(client_csv):
+            self.parse_client_data_final(client_csv, target['bssid'])
+            self.display_client_results(target)
+        else:
+            print("\033[1;31m[✘] Client scan failed\033[0m")
+
+    def parse_client_data_final(self, csv_file, target_bssid):
+        """Parse final client data"""
+        self.clients = {}
+        try:
+            with open(csv_file, 'r', encoding='utf-8', errors='replace') as f:
+                lines = f.readlines()
+                
+            # Find client section
+            client_section = False
+            for line in lines:
+                if 'Station MAC' in line:
+                    client_section = True
+                    continue
+                if client_section and line.strip():
+                    row = [field.strip() for field in line.split(',')]
+                    if len(row) >= 6 and self.is_valid_bssid(row[0]):
+                        client_mac = row[0]
+                        power = row[3] if len(row) > 3 else "-1"
+                        packets = row[4] if len(row) > 4 else "0"
+                        bssid = row[5] if len(row) > 5 else "Not Associated"
+                        
+                        if bssid == target_bssid:
+                            self.clients[client_mac] = {
+                                'power': power,
+                                'packets': packets,
+                                'bssid': bssid
+                            }
+        except Exception as e:
+            print(f"\033[1;33m[⚠️] Client parse error: {e}\033[0m")
+
+    def display_client_results(self, target):
+        """Display client reconnaissance results"""
+        if not self.clients:
+            print("\033[1;31m[✘] No clients detected\033[0m")
+            return
+        
+        print(f"\n\033[1;35m[📊] CLIENT RECONNAISSANCE: {target['essid']}\033[0m")
+        print(f"\033[1;32m[✅] Detected {len(self.clients)} connected clients\033[0m")
+        
+        print("\033[1;35m┌──────────────────────┬─────┬────────┬──────────────────────┐\033[0m")
+        print("\033[1;35m│ \033[1;37mClient MAC           │ PWR │ Packets │ Status\033[1;35m             │\033[0m")
+        print("\033[1;35m├──────────────────────┼─────┼────────┼──────────────────────┤\033[0m")
+        
+        for client_mac, client_info in self.clients.items():
+            power = client_info['power']
+            packets = client_info['packets']
+            status = "🟢 ACTIVE" if int(packets) > 10 else "🟡 IDLE"
+            
+            print(f"\033[1;35m│ \033[1;32m{client_mac}\033[0m \033[1;33m{power:>4}\033[0m {packets:>7}   {status:18} \033[1;35m│\033[0m")
+        
+        print("\033[1;35m└──────────────────────┴─────┴────────┴──────────────────────┘\033[0m")
