@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# NetStrike Framework Installer v3.0
-# Enhanced with Smart Lock Handling
+# NetStrike Framework Installer v3.0 Ultimate
+# Enhanced Professional Installation
 # by ZeroHaven Security
 
 # Modern Colors
@@ -93,7 +93,7 @@ echo -e "${PURPLE}"
 echo "╔══════════════════════════════════════════════════════════════════╗"
 echo "║                                                                  ║"
 echo "║                   NETSTRIKE FRAMEWORK v3.0                       ║"
-echo "║                   ENHANCED INSTALLATION                          ║"
+echo "║                   ULTIMATE INSTALLATION                          ║"
 echo "║                         DETECTED: ${DISTRO^^}                          ║"
 echo "║                                                                  ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
@@ -105,14 +105,14 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-echo -e "${CYAN}[→] Starting enhanced installation for ${DISTRO^^}...${NC}"
+echo -e "${CYAN}[→] Starting ultimate installation for ${DISTRO^^}...${NC}"
 
 # Essential tools list
-ESSENTIAL_TOOLS=("aircrack-ng" "macchanger" "xterm" "iwconfig")
-OPTIONAL_TOOLS=("mdk4" "reaver" "hostapd" "dnsmasq" "hashcat")
+ESSENTIAL_TOOLS=("aircrack-ng" "macchanger" "iwconfig" "mdk4" "hostapd" "dnsmasq" "hcxdumptool")
+OPTIONAL_TOOLS=("reaver" "hashcat" "bully")
 
 # Check available tools first
-echo -e "${CYAN}[→] Checking available tools...${NC}"
+echo -e "${CYAN}[→] Checking professional toolkit...${NC}"
 AVAILABLE_TOOLS=()
 MISSING_TOOLS=()
 
@@ -129,7 +129,7 @@ echo -e "${YELLOW}[⚠️] ${#MISSING_TOOLS[@]} tools need installation${NC}"
 
 # If all tools available, skip installation
 if [ ${#MISSING_TOOLS[@]} -eq 0 ]; then
-    echo -e "${GREEN}[✅] All required tools are already installed!${NC}"
+    echo -e "${GREEN}[✅] All professional tools are already installed!${NC}"
 else
     # Quick system update
     echo -e "${CYAN}[→] Quick system update...${NC}"
@@ -139,7 +139,7 @@ else
     wait $pid
     
     # Install missing tools
-    echo -e "${CYAN}[→] Installing missing tools...${NC}"
+    echo -e "${CYAN}[→] Installing missing professional tools...${NC}"
     for tool in "${MISSING_TOOLS[@]}"; do
         install_tool_fast $tool
     done
@@ -159,7 +159,7 @@ else
 fi
 
 # Setup wordlists
-echo -e "${CYAN}[→] Setting up wordlists...${NC}"
+echo -e "${CYAN}[→] Setting up professional wordlists...${NC}"
 mkdir -p /usr/share/wordlists
 
 if [ -f "/usr/share/wordlists/rockyou.txt.gz" ] && [ ! -f "/usr/share/wordlists/rockyou.txt" ]; then
@@ -171,8 +171,8 @@ if [ -f "/usr/share/wordlists/rockyou.txt.gz" ] && [ ! -f "/usr/share/wordlists/
 elif [ -f "/usr/share/wordlists/rockyou.txt" ]; then
     echo -e "${GREEN}[✅] ROCKYOU.TXT available${NC}"
 else
-    # Create basic wordlist
-    cat > /usr/share/wordlists/netstrike_passwords.txt << 'EOF'
+    # Create professional wordlist
+    cat > /usr/share/wordlists/netstrike_professional.txt << 'EOF'
 123456
 password
 12345678
@@ -194,17 +194,22 @@ welcome
 passw0rd
 master
 hello
+freedom
+whatever
+qazwsx
+trustno1
+jennifer
 EOF
-    echo -e "${GREEN}[✅] Basic wordlist created${NC}"
+    echo -e "${GREEN}[✅] Professional wordlist created${NC}"
 fi
 
 # Set permissions
-echo -e "${CYAN}[→] Setting permissions...${NC}"
+echo -e "${CYAN}[→] Setting professional permissions...${NC}"
 chmod +x *.py
 echo -e "${GREEN}[✅] Permissions set${NC}"
 
 # Final verification
-echo -e "${CYAN}[→] Final verification...${NC}"
+echo -e "${CYAN}[→] Final professional verification...${NC}"
 VERIFIED=true
 for tool in "${ESSENTIAL_TOOLS[@]}"; do
     if ! command -v $tool &> /dev/null; then
@@ -214,8 +219,8 @@ for tool in "${ESSENTIAL_TOOLS[@]}"; do
 done
 
 if $VERIFIED; then
-    echo -e "${GREEN}[✅] All core tools verified${NC}"
-    echo -e "${GREEN}[🎉] NetStrike Framework v3.0 installed successfully!${NC}"
+    echo -e "${GREEN}[✅] All professional tools verified${NC}"
+    echo -e "${GREEN}[🎉] NetStrike Framework v3.0 Ultimate installed successfully!${NC}"
 else
     echo -e "${YELLOW}[⚠️] Some tools missing - but core functionality should work${NC}"
 fi
@@ -223,24 +228,24 @@ fi
 # Display completion message
 echo ""
 echo -e "${PURPLE}╔══════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${PURPLE}║                         QUICK START GUIDE                        ║${NC}"
+echo -e "${PURPLE}║                     ULTIMATE START GUIDE                         ║${NC}"
 echo -e "${PURPLE}╠══════════════════════════════════════════════════════════════════╣${NC}"
 echo -e "${PURPLE}║                                                                  ║${NC}"
 echo -e "${PURPLE}║  1. ${CYAN}sudo python3 netstrike.py${PURPLE}                                  ║${NC}"
 echo -e "${PURPLE}║  2. ${CYAN}Select your wireless interface${PURPLE}                             ║${NC}"
-echo -e "${PURPLE}║  3. ${CYAN}Choose operation from modern menu${PURPLE}                          ║${NC}"
+echo -e "${PURPLE}║  3. ${CYAN}Choose operation from professional menu${PURPLE}                    ║${NC}"
 echo -e "${PURPLE}║  4. ${CYAN}Press Ctrl+C to stop any operation${PURPLE}                         ║${NC}"
 echo -e "${PURPLE}║                                                                  ║${NC}"
-echo -e "${PURPLE}║  ${GREEN}Available Operations:${PURPLE}                                         ║${NC}"
-echo -e "${PURPLE}║  ${YELLOW}• Single WiFi Jamming${PURPLE}                                       ║${NC}"
-echo -e "${PURPLE}║  ${YELLOW}• Mass WiFi Disruption${PURPLE}                                      ║${NC}"
-echo -e "${PURPLE}║  ${YELLOW}• Password Cracking${PURPLE}                                         ║${NC}"
-echo -e "${PURPLE}║  ${YELLOW}• Advanced Evil Twin${PURPLE}                                        ║${NC}"
-echo -e "${PURPLE}║  ${YELLOW}• Network Scanning${PURPLE}                                          ║${NC}"
-echo -e "${PURPLE}║  ${YELLOW}• Router Stress Testing${PURPLE}                                     ║${NC}"
+echo -e "${PURPLE}║  ${GREEN}Professional Operations:${PURPLE}                                    ║${NC}"
+echo -e "${PURPLE}║  ${YELLOW}• Single WiFi Jamming${PURPLE}       - Dual-engine targeted strike  ║${NC}"
+echo -e "${PURPLE}║  ${YELLOW}• Mass WiFi Disruption${PURPLE}      - Channel aggregation protocol║${NC}"
+echo -e "${PURPLE}║  ${YELLOW}• Password Cracking${PURPLE}         - Cascade engine (4 methods)  ║${NC}"
+echo -e "${PURPLE}║  ${YELLOW}• Advanced Evil Twin${PURPLE}        - Open AP + verification      ║${NC}"
+echo -e "${PURPLE}║  ${YELLOW}• Network Scanning${PURPLE}          - Deep reconnaissance        ║${NC}"
+echo -e "${PURPLE}║  ${YELLOW}• Router Stress Testing${PURPLE}     - Hardware stress test        ║${NC}"
 echo -e "${PURPLE}║                                                                  ║${NC}"
 echo -e "${PURPLE}╚══════════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "${YELLOW}[⚠️] IMPORTANT: Use only for authorized testing and educational purposes!${NC}"
-echo -e "${GREEN}[🔒] Enhanced Features: Modern UI, Better Attacks, Improved Security${NC}"
+echo -e "${GREEN}[🔒] Ultimate Features: Atomic Scanning, Cascade Cracking, Open AP Evil Twin${NC}"
 echo ""
