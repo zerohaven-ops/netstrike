@@ -13,6 +13,7 @@ from core import NetStrikeCore
 from scanner import NetworkScanner
 from attacker import AttackManager
 from cracker import PasswordCracker
+from installer import ToolInstaller  # ADDED IMPORT
 
 class NetStrike:
     def __init__(self):
@@ -20,6 +21,7 @@ class NetStrike:
         self.scanner = NetworkScanner(self.core)
         self.attacker = AttackManager(self.core, self.scanner)
         self.cracker = PasswordCracker(self.core, self.scanner)
+        self.installer = ToolInstaller(self.core)  # ADDED INITIALIZATION
         
     def display_banner(self):
         print("""
