@@ -1,4 +1,4 @@
-NetStrike Framework v3.0 Ultimate
+NetStrike Framework v3.0.1 Ultimate
 Advanced Wireless Security Research Platform
 by ZeroHaven Security
 markdown
@@ -69,7 +69,7 @@ markdown
 ## 📦 INSTALLATION GUIDE
 
 ### 🖥️ SYSTEM REQUIREMENTS
-- **OS**: Kali Linux 2023+ (Recommended), Ubuntu 20.04+, Debian 11+
+- **OS**: Kali Linux 2024+ (Recommended), Ubuntu 20.04+, Debian 11+
 - **Privileges**: Root/Administrative access required
 - **Hardware**: Wireless adapter supporting monitor mode & packet injection
 - **RAM**: Minimum 2GB, 4GB recommended
@@ -297,7 +297,7 @@ Respect privacy and legal boundaries
 
 Report security research findings responsibly. Use with extreme caution and proper authorization.
 
-<p align="center"> <strong>For legitimate security research collaboration or educational inquiries,</strong><br> <strong>contact through appropriate academic or professional channels only.</strong> </p><p align="center"> <em>Last Updated:11/20/2025 | Version: 3.0 Ultimate</em> </p> 
+<p align="center"> <strong>For legitimate security research collaboration or educational inquiries,</strong><br> <strong>contact through appropriate academic or professional channels only.</strong> </p><p align="center"> <em>Last Updated:11/20/2025 | Version: 3.0.1 Ultimate</em> </p> 
 
 ```
 🔧 QUICK DEPLOYMENT COMMANDS
