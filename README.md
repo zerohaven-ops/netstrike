@@ -92,8 +92,9 @@ sudo ./install.sh
 
 # Launch the framework
 sudo python3 netstrike.py
-
+```
 🔧 MANUAL INSTALLATION (ADVANCED)
+```
 bash
 # Clone repository
 git clone https://github.com/zerohaven-ops/netstrike.git
@@ -111,9 +112,12 @@ pip3 install requests scapy
 
 # Launch framework
 sudo python3 netstrike.py
+```
 
 🔄 REINSTALLATION PROCEDURE
 If you encounter issues or want a clean installation:
+
+```
 bash
 # Complete removal
 sudo rm -rf netstrike
@@ -128,7 +132,10 @@ sudo ./install.sh
 
 # Verify installation
 sudo python3 netstrike.py
+```
+
 🐛 TROUBLESHOOTING COMMON ISSUES
+```
 bash
 # If monitor mode fails:
 sudo airmon-ng check kill
@@ -149,8 +156,11 @@ sudo rfkill unblock all
 ```
 🎯 RESEARCH USAGE GUIDE
 🚀 STARTING THE FRAMEWORK
+```
 bash
 sudo python3 netstrike.py
+```
+
 🔬 MAIN RESEARCH MODULES
 📶 Single Target Analysis - Focused network security assessment
 
