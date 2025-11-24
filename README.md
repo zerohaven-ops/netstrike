@@ -1,4 +1,4 @@
-NetStrike Framework v3.0.1 Ultimate
+NetStrike Framework v3.0.1. Ultimate
 Advanced Wireless Security Research Platform
 by ZeroHaven Security
 markdown
