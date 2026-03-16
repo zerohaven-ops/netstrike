@@ -52,54 +52,67 @@ class NetworkScanner:
         try:
             self.current_scan_file = "/tmp/netstrike_pro_scan"
             subprocess.run(f"rm -f {self.current_scan_file}* 2>/dev/null", shell=True)
-            
+
             # Verify airodump-ng is available
             if not self.core.run_command("command -v airodump-ng"):
                 print("\033[1;31m[✘] airodump-ng not found - please install aircrack-ng\033[0m")
                 return False
-            
-            # Professional airodump command
-            cmd = [
-                "airodump-ng",
-                self.core.mon_interface,
-                "--output-format", "csv",
-                "-w", self.current_scan_file,
-                "--write-interval", "2",
-                "--band", "abg"
-            ]
-            
-            print("\033[1;32m[✓] Professional scan initiated\033[0m")
-            
-            # Kill any existing processes
+
+            # Kill any existing airodump processes
             self.core.run_command("killall airodump-ng 2>/dev/null")
-            time.sleep(2)
-            
-            # Start scan process
-            scan_process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
-            
-            # Professional progress monitoring
+            time.sleep(1)
+
+            # Try dual-band first; fall back to 2.4GHz-only if adapter rejects --band abg
+            scan_process = self._start_airodump(dual_band=True)
+            time.sleep(3)
+            csv_file = f"{self.current_scan_file}-01.csv"
+            if scan_process.poll() is not None or not os.path.exists(csv_file):
+                # Process died or produced nothing — restart without --band
+                try:
+                    scan_process.terminate()
+                except Exception:
+                    pass
+                time.sleep(1)
+                print("\033[1;33m[!] Dual-band unavailable — scanning 2.4GHz\033[0m")
+                scan_process = self._start_airodump(dual_band=False)
+
+            print("\033[1;32m[✓] Scan initiated\033[0m")
+
             start_time = time.time()
             while time.time() - start_time < duration:
                 elapsed = int(time.time() - start_time)
-                remaining = duration - elapsed
-                
                 self.update_professional_display(elapsed, duration)
                 time.sleep(2)
-            
-            # Stop scanning
-            scan_process.terminate()
-            scan_process.wait()
-            
-            print("\033[1;32m[✓] Professional scan complete\033[0m")
+
+            try:
+                scan_process.terminate()
+                scan_process.wait(timeout=3)
+            except Exception:
+                pass
+
+            print("\033[1;32m[✓] Scan complete\033[0m")
             return self.finalize_professional_scan()
-            
+
         except Exception as e:
             print(f"\033[1;31m[✘] Scan failed: {e}\033[0m")
             return False
+
+    def _start_airodump(self, dual_band=True):
+        """Start airodump-ng, optionally with --band abg for 5GHz support."""
+        cmd = [
+            "airodump-ng",
+            self.core.mon_interface,
+            "--output-format", "csv",
+            "-w", self.current_scan_file,
+            "--write-interval", "2",
+        ]
+        if dual_band:
+            cmd += ["--band", "abg"]
+        return subprocess.Popen(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
 
     def update_professional_display(self, elapsed, total):
         """Professional real-time display"""
@@ -528,7 +541,7 @@ class NetworkScanner:
         for client_mac, client_info in self.clients.items():
             power = client_info['power']
             packets = client_info['packets']
-            status = "🟢 ACTIVE" if int(packets) > 10 else "🟡 IDLE"
+            status = "🟢 ACTIVE" if packets.strip().lstrip('-').isdigit() and int(packets) > 10 else "🟡 IDLE"
             
             print(f"\033[1;35m│ \033[1;32m{client_mac}\033[0m \033[1;33m{power:>4}\033[0m {packets:>7}   {status:18} \033[1;35m│\033[0m")
         

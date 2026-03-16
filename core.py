@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+"""
+NETSTRIKE v4.0 - PHANTOM EDITION
+Core Module
+"""
 
 import os
 import sys
@@ -6,8 +10,7 @@ import time
 import subprocess
 import threading
 import signal
-import random
-from typing import Dict, List
+
 
 class NetStrikeCore:
     def __init__(self):
@@ -20,415 +23,292 @@ class NetStrikeCore:
         self.spoofing_active = False
         self.attack_processes = []
         self.current_operation = None
-        
+
+    # ─────────────────────────────────────────────
+    # ROOT / DEPS
+    # ─────────────────────────────────────────────
+
     def check_root(self):
-        """Check if running as root"""
         if os.geteuid() != 0:
-            print("\033[1;31m[✘] NetStrike Framework requires root privileges\033[0m")
+            print("\033[1;31m[✘] Root privileges required\033[0m")
             return False
-        print("\033[1;32m[✓] Root privileges confirmed\033[0m")
+        print("\033[1;32m[✓] Root confirmed\033[0m")
         return True
 
     def check_dependencies(self):
-        """Check and install required dependencies"""
-        print("\033[1;36m[→] Checking professional toolkit...\033[0m")
-        
-        essential_tools = ["aircrack-ng", "macchanger", "iwconfig", "mdk4", "hostapd", "dnsmasq"]
-        missing_tools = []
-        
-        for tool in essential_tools:
-            result = self.run_command(f"command -v {tool}")
-            if not result or result.returncode != 0:
-                missing_tools.append(tool)
-                print(f"\033[1;33m[⚠️] {tool} missing\033[0m")
-            else:
-                print(f"\033[1;32m[✅] {tool} available\033[0m")
-        
-        if missing_tools:
-            print("\033[1;36m[→] Installing missing professional tools...\033[0m")
-            for tool in missing_tools:
-                self.run_command(f"apt install -y {tool} > /dev/null 2>&1")
-                print(f"\033[1;32m[✅] {tool} installed\033[0m")
-        
-        return True
+        print("\033[1;36m[→] Checking toolkit...\033[0m")
 
-    def set_current_operation(self, operation):
-        """Set current operation for signal handling"""
-        self.current_operation = operation
+        # binary -> apt package
+        tools = {
+            "airmon-ng":     "aircrack-ng",
+            "airodump-ng":   "aircrack-ng",
+            "aireplay-ng":   "aircrack-ng",
+            "aircrack-ng":   "aircrack-ng",
+            "mdk4":          "mdk4",
+            "macchanger":    "macchanger",
+            "hostapd":       "hostapd",
+            "dnsmasq":       "dnsmasq",
+            "hcxdumptool":   "hcxdumptool",
+            "hcxpcapngtool": "hcxtools",
+            "hashcat":       "hashcat",
+            "reaver":        "reaver",
+            "bully":         "bully",
+            "wash":          "reaver",
+        }
 
-    def clear_current_operation(self):
-        """Clear current operation"""
-        self.current_operation = None
+        missing_pkgs = []
+        for binary, package in tools.items():
+            r = self.run_command(f"command -v {binary} 2>/dev/null")
+            found = bool(r and r.stdout.strip())
+            status = "\033[1;32m[✓]\033[0m" if found else "\033[1;33m[!]\033[0m"
+            print(f"  {status} {binary}")
+            if not found and package not in missing_pkgs:
+                missing_pkgs.append(package)
+
+        if missing_pkgs:
+            print(f"\033[1;33m[!] Still missing after setup: {', '.join(missing_pkgs)}\033[0m")
+            print("\033[1;33m[!] Run: apt-get install " + " ".join(missing_pkgs) + "\033[0m")
+
+    # ─────────────────────────────────────────────
+    # COMMAND RUNNER
+    # ─────────────────────────────────────────────
 
     def run_command(self, command, background=False, timeout=30):
-        """Execute system command with enhanced error handling"""
         try:
             if background:
-                return subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            else:
-                result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=timeout)
-                return result
+                return subprocess.Popen(
+                    command, shell=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+            return subprocess.run(
+                command, shell=True,
+                capture_output=True, text=True,
+                timeout=timeout
+            )
         except subprocess.TimeoutExpired:
-            print(f"\033[1;33m[!] Command timeout: {command}\033[0m")
             return None
-        except Exception as e:
-            print(f"\033[1;31m[✘] Command failed: {e}\033[0m")
+        except Exception:
             return None
 
+    # ─────────────────────────────────────────────
+    # INTERFACE SELECTION
+    # ─────────────────────────────────────────────
+
     def detect_wireless_interfaces(self):
-        """Detect available wireless interfaces"""
-        print("\033[1;36m[→] Scanning for wireless interfaces...\033[0m")
-        
         interfaces = []
-        
-        # Method 1: Use iwconfig
-        result = self.run_command("iwconfig 2>/dev/null | grep -E '^[a-zA-Z]' | grep -v 'no wireless' | awk '{print $1}'")
-        if result and result.stdout:
-            interfaces.extend([iface.strip() for iface in result.stdout.split('\n') if iface.strip()])
-        
-        # Method 2: Use ip link
-        result = self.run_command("ip link show | grep -E '^[0-9]+:' | awk -F: '{print $2}' | grep -E '(wlan|wlx|wlp)' | tr -d ' '")
-        if result and result.stdout:
-            for iface in result.stdout.split('\n'):
-                if iface.strip() and iface.strip() not in interfaces:
-                    interfaces.append(iface.strip())
-        
-        # Remove duplicates and empty strings
-        interfaces = list(set([iface for iface in interfaces if iface]))
-        
+        cmds = [
+            "iwconfig 2>/dev/null | grep -E '^[a-zA-Z]' | grep -v 'no wireless' | awk '{print $1}'",
+            "ip link show | grep -E '^[0-9]+:' | awk -F: '{print $2}' | grep -E '(wlan|wlx|wlp)' | tr -d ' '",
+        ]
+        for cmd in cmds:
+            r = self.run_command(cmd)
+            if r and r.stdout:
+                for iface in r.stdout.split('\n'):
+                    iface = iface.strip()
+                    if iface and iface not in interfaces:
+                        interfaces.append(iface)
         return interfaces
 
     def select_interface(self):
-        """Let user select wireless interface"""
         interfaces = self.detect_wireless_interfaces()
-        
         if not interfaces:
             print("\033[1;31m[✘] No wireless interfaces found\033[0m")
             return False
-        
-        print("\033[1;35m┌──────────────────────────────────────────────────────────┐\033[0m")
-        print("\033[1;35m│ \033[1;37mDETECTED WIRELESS INTERFACES\033[1;35m                           │\033[0m")
-        print("\033[1;35m├──────────────────────────────────────────────────────────┤\033[0m")
-        
-        for idx, iface in enumerate(interfaces, 1):
-            # Get interface status
-            status = self.run_command(f"iwconfig {iface} 2>/dev/null | grep 'Mode:'")
-            mode = "Monitor" if status and "Monitor" in status.stdout else "Managed"
-            print(f"\033[1;35m│ \033[1;36m{idx}\033[0m) \033[1;32m{iface}\033[0m - \033[1;33m{mode}\033[0m{' ' * (30 - len(iface))}\033[1;35m│\033[0m")
-        
-        print("\033[1;35m└──────────────────────────────────────────────────────────┘\033[0m")
-        
+
+        print("\033[1;35m┌────────────────────────────────────────┐\033[0m")
+        print("\033[1;35m│  WIRELESS INTERFACES                   │\033[0m")
+        print("\033[1;35m├────────────────────────────────────────┤\033[0m")
+        for i, iface in enumerate(interfaces, 1):
+            r = self.run_command(f"iwconfig {iface} 2>/dev/null | grep 'Mode:'")
+            mode = "Monitor" if r and "Monitor" in r.stdout else "Managed"
+            pad = 24 - len(iface) - len(mode)
+            print(f"\033[1;35m│  \033[1;36m{i}\033[0m) \033[1;32m{iface}\033[0m - \033[1;33m{mode}\033[0m{' ' * max(pad, 1)}\033[1;35m│\033[0m")
+        print("\033[1;35m└────────────────────────────────────────┘\033[0m")
+
         try:
-            selection = input("\n\033[1;36m[?] Select interface (1-{}): \033[0m".format(len(interfaces)))
-            idx = int(selection) - 1
-            
+            idx = int(input(f"\n\033[1;36m[?] Select (1-{len(interfaces)}): \033[0m")) - 1
             if 0 <= idx < len(interfaces):
                 self.interface = interfaces[idx]
-                print(f"\033[1;32m[✓] Interface selected: {self.interface}\033[0m")
+                print(f"\033[1;32m[✓] Selected: {self.interface}\033[0m")
                 return True
-            else:
-                print("\033[1;31m[✘] Invalid selection\033[0m")
-                return False
-                
-        except ValueError:
-            print("\033[1;31m[✘] Invalid input\033[0m")
-            return False
+        except (ValueError, IndexError):
+            pass
+        print("\033[1;31m[✘] Invalid selection\033[0m")
+        return False
 
     def save_original_config(self):
-        """Save original network configuration"""
-        print("\033[1;36m[→] Saving original system configuration...\033[0m")
-        
-        # Save original MAC
-        result = self.run_command(f"macchanger -s {self.interface} 2>/dev/null")
-        if result and "Current MAC" in result.stdout:
-            lines = result.stdout.split('\n')
-            for line in lines:
-                if "Current MAC" in line:
-                    self.original_mac = line.split("Current MAC:")[1].strip().split()[0]
-                    break
-        else:
-            # Alternative method
-            result = self.run_command(f"cat /sys/class/net/{self.interface}/address")
-            if result and result.stdout.strip():
-                self.original_mac = result.stdout.strip()
-            else:
-                self.original_mac = "unknown"
-        
-        # Save original IP
-        result = self.run_command(f"ip addr show {self.interface} 2>/dev/null")
-        if result and "inet " in result.stdout:
-            for line in result.stdout.split('\n'):
+        r = self.run_command(f"cat /sys/class/net/{self.interface}/address 2>/dev/null")
+        self.original_mac = r.stdout.strip() if r and r.stdout.strip() else "unknown"
+
+        self.original_ip = "unknown"
+        r = self.run_command(f"ip addr show {self.interface} 2>/dev/null")
+        if r and "inet " in r.stdout:
+            for line in r.stdout.split('\n'):
                 if "inet " in line and "scope global" in line:
                     self.original_ip = line.strip().split()[1].split('/')[0]
                     break
-        else:
-            self.original_ip = "unknown"
-        
-        print("\033[1;32m[✓] Original configuration saved\033[0m")
-        print(f"\033[1;33m[→] Original MAC: {self.original_mac}\033[0m")
-        print(f"\033[1;33m[→] Original IP: {self.original_ip}\033[0m")
+        print(f"\033[1;33m[→] MAC: {self.original_mac}  |  IP: {self.original_ip}\033[0m")
+
+    # ─────────────────────────────────────────────
+    # MONITOR MODE
+    # ─────────────────────────────────────────────
 
     def setup_monitor_mode(self):
-        """Setup monitor mode on wireless interface"""
-        print("\033[1;36m[→] Activating monitor mode...\033[0m")
-        
+        print("\033[1;36m[→] Setting up monitor mode...\033[0m")
+
         # Kill interfering processes
-        self.run_command("airmon-ng check kill >/dev/null 2>&1")
+        self.run_command("airmon-ng check kill > /dev/null 2>&1")
         time.sleep(2)
-        
-        # Start monitor mode
-        result = self.run_command(f"airmon-ng start {self.interface} >/dev/null 2>&1")
-        
-        # Try to find monitor interface
+
+        # Start monitor
+        self.run_command(f"airmon-ng start {self.interface} > /dev/null 2>&1")
         time.sleep(2)
-        
-        # Check for monitor interfaces
-        result = self.run_command("iwconfig 2>/dev/null | grep 'Mode:Monitor' | awk '{print $1}'")
-        if result and result.stdout.strip():
-            self.mon_interface = result.stdout.strip().split('\n')[0]
+
+        # Find the monitor interface
+        r = self.run_command("iwconfig 2>/dev/null | grep 'Mode:Monitor' | awk '{print $1}'")
+        if r and r.stdout.strip():
+            self.mon_interface = r.stdout.strip().split('\n')[0].strip()
         else:
-            # Try common monitor interface names
-            possible_names = [f"{self.interface}mon", "mon0", "wlan0mon", "wlan1mon"]
-            for name in possible_names:
-                result = self.run_command(f"iwconfig {name} 2>/dev/null")
-                if result and "Mode:Monitor" in result.stdout:
+            candidates = [f"{self.interface}mon", "mon0", "wlan0mon", "wlan1mon", "wlan2mon"]
+            for name in candidates:
+                r = self.run_command(f"iwconfig {name} 2>/dev/null")
+                if r and "Mode:Monitor" in r.stdout:
                     self.mon_interface = name
                     break
             else:
-                # Use original interface if already in monitor mode
-                result = self.run_command(f"iwconfig {self.interface} 2>/dev/null")
-                if result and "Mode:Monitor" in result.stdout:
+                r = self.run_command(f"iwconfig {self.interface} 2>/dev/null")
+                if r and "Mode:Monitor" in r.stdout:
                     self.mon_interface = self.interface
                 else:
-                    print("\033[1;31m[✘] Monitor mode activation failed\033[0m")
+                    print("\033[1;31m[✘] Monitor mode failed\033[0m")
                     return False
-        
-        # Verify monitor mode
-        result = self.run_command(f"iwconfig {self.mon_interface} 2>/dev/null")
-        if result and "Mode:Monitor" in result.stdout:
-            print(f"\033[1;32m[✓] Monitor mode activated: {self.mon_interface}\033[0m")
+
+        # Verify
+        r = self.run_command(f"iwconfig {self.mon_interface} 2>/dev/null")
+        if r and "Mode:Monitor" in r.stdout:
+            print(f"\033[1;32m[✓] Monitor mode active: {self.mon_interface}\033[0m")
             return True
-        else:
-            print("\033[1;31m[✘] Monitor mode verification failed\033[0m")
-            return False
 
-    def start_advanced_spoofing(self):
-        """Start advanced MAC and IP spoofing"""
-        print("\033[1;36m[→] Activating advanced anonymity...\033[0m")
-        
-        self.spoofing_active = True
-        
-        self.mac_spoof_thread = threading.Thread(target=self.advanced_mac_spoofing)
-        self.ip_spoof_thread = threading.Thread(target=self.advanced_ip_spoofing)
-        
-        self.mac_spoof_thread.daemon = True
-        self.ip_spoof_thread.daemon = True
-        
-        self.mac_spoof_thread.start()
-        self.ip_spoof_thread.start()
-        
-        print("\033[1;32m[✓] Advanced anonymity activated\033[0m")
-
-    def advanced_mac_spoofing(self):
-        """Advanced MAC spoofing with multiple methods"""
-        count = 0
-        while self.spoofing_active:
-            time.sleep(180)  # Change every 3 minutes
-            
-            if not self.spoofing_active:
-                break
-                
-            try:
-                # Method 1: Using macchanger
-                self.run_command(f"ip link set {self.mon_interface} down >/dev/null 2>&1")
-                self.run_command(f"macchanger -r {self.mon_interface} >/dev/null 2>&1")
-                self.run_command(f"ip link set {self.mon_interface} up >/dev/null 2>&1")
-                
-                count += 1
-                print(f"\033[1;32m[✓] MAC address cycled #{count}\033[0m")
-                
-            except Exception as e:
-                print(f"\033[1;33m[!] MAC spoofing attempt failed: {e}\033[0m")
-
-    def advanced_ip_spoofing(self):
-        """Advanced IP spoofing and network refresh"""
-        while self.spoofing_active:
-            time.sleep(300)  # 5 minutes
-            
-            if not self.spoofing_active:
-                break
-                
-            try:
-                # Refresh network configuration
-                self.run_command("systemctl restart NetworkManager >/dev/null 2>&1")
-                time.sleep(2)
-                
-                # Flush IP tables and renew
-                self.run_command("iptables --flush >/dev/null 2>&1")
-                self.run_command("ip route flush table main >/dev/null 2>&1")
-                
-                print("\033[1;32m[✓] Network configuration refreshed\033[0m")
-                
-            except Exception as e:
-                print(f"\033[1;33m[!] IP spoofing attempt failed: {e}\033[0m")
-
-    def stop_advanced_spoofing(self):
-        """Stop spoofing threads"""
-        self.spoofing_active = False
-        if self.mac_spoof_thread:
-            self.mac_spoof_thread.join(timeout=2)
-        if self.ip_spoof_thread:
-            self.ip_spoof_thread.join(timeout=2)
+        print("\033[1;31m[✘] Monitor mode verification failed\033[0m")
+        return False
 
     def stop_monitor_mode(self):
-        """Stop monitor mode"""
         if self.mon_interface:
-            print("\033[1;36m[→] Deactivating monitor mode...\033[0m")
-            self.run_command(f"airmon-ng stop {self.mon_interface} >/dev/null 2>&1")
-            self.run_command("systemctl restart NetworkManager >/dev/null 2>&1")
-            print("\033[1;32m[✓] Monitor mode deactivated\033[0m")
+            self.run_command(f"airmon-ng stop {self.mon_interface} > /dev/null 2>&1")
+            self.run_command("systemctl restart NetworkManager > /dev/null 2>&1")
+
+    # ─────────────────────────────────────────────
+    # ANONYMITY / SPOOFING
+    # ─────────────────────────────────────────────
+
+    def start_advanced_spoofing(self):
+        self.spoofing_active = True
+        self.mac_spoof_thread = threading.Thread(target=self._mac_spoof_loop, daemon=True)
+        self.ip_spoof_thread = threading.Thread(target=self._ip_refresh_loop, daemon=True)
+        self.mac_spoof_thread.start()
+        self.ip_spoof_thread.start()
+        print("\033[1;32m[✓] Anonymity layer active (MAC rotation every 3 min)\033[0m")
+
+    def _mac_spoof_loop(self):
+        count = 0
+        while self.spoofing_active:
+            time.sleep(180)
+            if not self.spoofing_active:
+                break
+            try:
+                self.run_command(f"ip link set {self.mon_interface} down 2>/dev/null")
+                self.run_command(f"macchanger -r {self.mon_interface} > /dev/null 2>&1")
+                self.run_command(f"ip link set {self.mon_interface} up 2>/dev/null")
+                count += 1
+            except Exception:
+                pass
+
+    def _ip_refresh_loop(self):
+        while self.spoofing_active:
+            time.sleep(300)
+            if not self.spoofing_active:
+                break
+            try:
+                self.run_command("dhclient -r 2>/dev/null; dhclient 2>/dev/null")
+            except Exception:
+                pass
+
+    def stop_advanced_spoofing(self):
+        self.spoofing_active = False
+
+    # ─────────────────────────────────────────────
+    # PROCESS MANAGEMENT
+    # ─────────────────────────────────────────────
 
     def add_attack_process(self, process):
-        """Add attack process to management list"""
         if process and process.poll() is None:
             self.attack_processes.append(process)
 
     def stop_all_attacks(self):
-        """Stop all running attacks"""
-        print("\033[1;36m[→] Terminating all active operations...\033[0m")
-        
-        # Kill all attack processes
-        for process in self.attack_processes:
+        for p in self.attack_processes:
             try:
-                if process and process.poll() is None:
-                    process.terminate()
-                    process.wait(timeout=2)
-            except:
+                if p and p.poll() is None:
+                    p.terminate()
+                    p.wait(timeout=2)
+            except Exception:
                 pass
-        
         self.attack_processes = []
-        
-        # Kill any remaining attack processes
-        kill_commands = [
-            "killall airodump-ng aireplay-ng mdk4 reaver bully wash hostapd dnsmasq 2>/dev/null",
-            "pkill -f 'mdk4|aireplay-ng|airodump-ng|hostapd|dnsmasq|hcxdumptool|hashcat' 2>/dev/null",
-            "pkill -9 -f 'airodump-ng|aireplay-ng' 2>/dev/null"
-        ]
-        
-        for cmd in kill_commands:
+
+        for cmd in [
+            "killall airodump-ng aireplay-ng mdk4 reaver bully hostapd dnsmasq hcxdumptool 2>/dev/null",
+            "pkill -9 -f 'airodump-ng|aireplay-ng|mdk4|hostapd|dnsmasq|hcxdumptool|hashcat|reaver|bully' 2>/dev/null",
+        ]:
             self.run_command(cmd)
-        
-        print("\033[1;32m[✓] All operations terminated\033[0m")
+
+    def set_current_operation(self, op):
+        self.current_operation = op
+
+    def clear_current_operation(self):
+        self.current_operation = None
+
+    # ─────────────────────────────────────────────
+    # SIGNAL + CLEANUP
+    # ─────────────────────────────────────────────
 
     def signal_handler(self, sig, frame):
-        """Handle Ctrl+C signal gracefully"""
         if self.current_operation:
-            print(f"\n\033[1;33m[!] Stopping current operation: {self.current_operation}\033[0m")
+            print(f"\n\033[1;33m[!] Stopping: {self.current_operation}\033[0m")
             self.stop_all_attacks()
             self.clear_current_operation()
         else:
-            print("\n\033[1;33m[!] Exiting NetStrike Framework...\033[0m")
+            print("\n\033[1;33m[!] Exiting...\033[0m")
             self.nuclear_cleanup()
 
     def nuclear_cleanup(self):
-        """COMPLETE FORENSIC CLEANUP - DOOMSDAY UPGRADE"""
-        print("\033[1;35m[→] Initiating DOOMSDAY cleanup protocol...\033[0m")
-        
-        messages = [
-            "🛑 Terminating active sessions...",
-            "🧹 Cleaning system logs...", 
-            "🔄 Restoring original configuration...",
-            "🗑️ Removing temporary files...",
-            "🔒 Wiping digital traces...",
-            "🛡️ Forensic cleanup in progress...",
-            "✅ DOOMSDAY cleanup completed"
-        ]
-        
-        for msg in messages:
-            print(f"\033[1;35m[→] \033[1;36m{msg}\033[0m")
-            time.sleep(1)
-        
-        # PHASE 1: Process "Double-Tap"
-        print("\033[1;36m[→] PHASE 1: Process termination (Double-Tap)...\033[0m")
-        kill_list = ["airodump-ng", "aireplay-ng", "hostapd", "dnsmasq", "mdk4", "hashcat", "hcxdumptool", "reaver"]
-        
-        # First kill attempt
-        for proc in kill_list:
-            self.run_command(f"pkill {proc}")
-        time.sleep(2)
-        
-        # Force kill anything stubborn
-        for proc in kill_list:
-            self.run_command(f"pkill -9 {proc}")
-        
-        # Stop all attacks
+        print("\033[1;35m[→] Cleanup protocol initiated...\033[0m")
+
         self.stop_all_attacks()
-        
-        # PHASE 2: Network configuration cleanup
-        print("\033[1;36m[→] PHASE 2: Network configuration cleanup...\033[0m")
-        
-        # Revert network tables completely
-        self.run_command("iptables --flush")
-        self.run_command("iptables -t nat --flush")
-        self.run_command("iptables -t mangle --flush")
-        self.run_command("iptables -t raw --flush")
-        self.run_command("iptables -t security --flush")
-        
-        # Disable IP forwarding
-        self.run_command("echo 0 > /proc/sys/net/ipv4/ip_forward")
-        
-        # Reset network routes
-        self.run_command("ip route flush table main")
-        self.run_command("ip route flush cache")
-        
-        # PHASE 3: Stop spoofing and monitor mode
-        print("\033[1;36m[→] PHASE 3: Stopping spoofing and monitor mode...\033[0m")
         self.stop_advanced_spoofing()
+
+        # Flush iptables
+        for table in ["", "-t nat", "-t mangle", "-t raw"]:
+            self.run_command(f"iptables {table} --flush 2>/dev/null")
+
+        self.run_command("echo 0 > /proc/sys/net/ipv4/ip_forward 2>/dev/null")
+        self.run_command("ip route flush cache 2>/dev/null")
+
         self.stop_monitor_mode()
-        
-        # PHASE 4: Restore original identity
-        print("\033[1;36m[→] PHASE 4: Restoring original identity...\033[0m")
+
+        # Restore original MAC
         if self.original_mac and self.original_mac != "unknown":
-            self.run_command(f"ip link set {self.interface} down >/dev/null 2>&1")
-            self.run_command(f"macchanger -m {self.original_mac} {self.interface} >/dev/null 2>&1")
-            self.run_command(f"ip link set {self.interface} up >/dev/null 2>&1")
-        
-        # PHASE 5: Digital evidence removal
-        print("\033[1;36m[→] PHASE 5: Digital evidence removal...\033[0m")
-        
-        # Remove all temporary files
-        temp_patterns = [
-            "/tmp/netstrike_*", "/tmp/*.cap", "/tmp/*.csv", "/tmp/*.pcapng", 
-            "/tmp/*.hash", "/tmp/*.hc22000", "/tmp/cracked.txt", "/tmp/wordlist.txt",
-            "/tmp/client_scan_*", "/tmp/evil_twin_*", "/tmp/pro_*", "/tmp/captured_password.txt",
-            "/tmp/*.log", "/tmp/*.sh"
-        ]
-        
-        for pattern in temp_patterns:
-            self.run_command(f"rm -rf {pattern} 2>/dev/null")
-        
-        # Clear system logs related to our activities
-        log_commands = [
-            "echo '' > /var/log/syslog",
-            "echo '' > /var/log/messages", 
-            "journalctl --vacuum-time=1s",
-            "echo '' > ~/.bash_history && history -c"
-        ]
-        
-        for cmd in log_commands:
-            self.run_command(cmd)
-        
-        # PHASE 6: Final system restoration
-        print("\033[1;36m[→] PHASE 6: Final system restoration...\033[0m")
-        
-        # Restart network services
-        self.run_command("systemctl restart NetworkManager >/dev/null 2>&1")
-        self.run_command("systemctl restart systemd-resolved >/dev/null 2>&1")
-        
-        # Final process sweep
-        self.run_command("pkill -9 python3 2>/dev/null")
-        
-        print("\033[1;32m[✓] DOOMSDAY cleanup protocol complete\033[0m")
-        print("\033[1;32m[✓] All digital traces eliminated - Forensic cleanup successful\033[0m")
-        print("\033[1;32m[✓] System restored to pristine state\033[0m")
+            self.run_command(f"ip link set {self.interface} down 2>/dev/null")
+            self.run_command(f"macchanger -m {self.original_mac} {self.interface} > /dev/null 2>&1")
+            self.run_command(f"ip link set {self.interface} up 2>/dev/null")
+
+        # Remove temp files
+        for pattern in [
+            "/tmp/ns_*", "/tmp/netstrike_*", "/tmp/*.cap", "/tmp/*.csv",
+            "/tmp/*.pcapng", "/tmp/*.hc22000", "/tmp/*.hash", "/tmp/*.log", "/tmp/*.sh",
+        ]:
+            self.run_command(f"rm -f {pattern} 2>/dev/null")
+
+        self.run_command("systemctl restart NetworkManager > /dev/null 2>&1")
+
+        print("\033[1;32m[✓] Cleanup complete\033[0m")
         sys.exit(0)

