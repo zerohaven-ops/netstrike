@@ -6,7 +6,35 @@ import subprocess
 import threading
 import csv
 import re
+import json
 from typing import Dict, List
+
+# OUI → Vendor lookup (first 8 chars of BSSID, uppercase)
+OUI_DB = {
+    "C0:25:E9": "TP-Link",  "D8:0D:17": "TP-Link",  "50:C7:BF": "TP-Link",
+    "EC:08:6B": "TP-Link",  "F4:EC:38": "TP-Link",  "98:DA:C4": "TP-Link",
+    "A0:04:60": "Netgear",  "2C:B0:5D": "Netgear",  "9C:3D:CF": "Netgear",
+    "C4:04:15": "Netgear",  "84:1B:5E": "Netgear",  "A4:2B:8C": "Netgear",
+    "F8:8F:CA": "Google",   "1A:55:E7": "Google",   "48:D6:D5": "Google",
+    "B0:4E:26": "Linksys",  "00:18:F8": "Linksys",  "C0:C1:C0": "Linksys",
+    "00:1B:2F": "ASUS",     "00:1D:60": "ASUS",     "AC:84:C6": "ASUS",
+    "50:46:5D": "ASUS",     "2C:4D:54": "ASUS",     "04:D4:C4": "ASUS",
+    "00:24:B2": "Belkin",   "94:44:52": "Belkin",   "EC:1A:59": "Belkin",
+    "00:1A:2B": "D-Link",   "00:1C:F0": "D-Link",   "B0:C5:54": "D-Link",
+    "1C:7E:E5": "D-Link",   "84:C9:B2": "D-Link",   "F0:7D:68": "D-Link",
+    "00:26:5A": "Cisco",    "00:1E:BD": "Cisco",    "58:BC:27": "Cisco",
+    "00:1E:7E": "Huawei",   "48:46:FB": "Huawei",   "E0:19:54": "Huawei",
+    "18:A6:F7": "Tenda",    "C8:3A:35": "Tenda",    "00:87:36": "Tenda",
+    "00:1A:11": "Zyxel",    "00:14:D1": "Zyxel",    "E4:18:6B": "Zyxel",
+    "FC:EC:DA": "Ubiquiti", "24:A4:3C": "Ubiquiti", "80:2A:A8": "Ubiquiti",
+    "00:22:3F": "Apple",    "00:25:BC": "Apple",    "3C:22:FB": "Apple",
+    "A4:C3:61": "Apple",    "F0:B4:79": "Apple",    "28:CF:E9": "Apple",
+    "B8:27:EB": "Raspberry","DC:A6:32": "Raspberry","E4:5F:01": "Raspberry",
+    "00:0C:E7": "Samsung",  "00:1A:8A": "Samsung",  "50:32:75": "Samsung",
+    "00:17:C4": "Belkin",   "00:50:C2": "Mikrotik", "4C:5E:0C": "Mikrotik",
+    "00:0C:29": "VMware",   "00:50:56": "VMware",
+}
+
 
 class NetworkScanner:
     def __init__(self, core):
@@ -177,7 +205,8 @@ class NetworkScanner:
                         'power': power,
                         'encryption': encryption,
                         'essid': essid,
-                        'clients': 0  # Will be populated by client parser
+                        'clients': 0,
+                        'vendor': self._get_vendor(bssid),
                     }
                 except Exception as e:
                     continue  # Skip bad row, keep scanning!
@@ -247,48 +276,47 @@ class NetworkScanner:
                                reverse=True)
         
         if sorted_networks:
-            print("\033[1;35m┌────┬──────────────────────┬────┬─────┬───────────┬──────┬──────────────────────────┐\033[0m")
-            print("\033[1;35m│ \033[1;37m#  │ MAC Address           │ CH │ PWR │ ENCRYPTION │ CLIS │ NETWORK NAME\033[1;35m             │\033[0m")
-            print("\033[1;35m├────┼──────────────────────┼────┼─────┼───────────┼──────┼──────────────────────────┤\033[0m")
-            
-            for idx, (net_id, net_info) in enumerate(sorted_networks[:10], 1):
-                bssid = net_info['bssid']
-                channel = net_info['channel']
-                power = net_info['power']
+            print("\033[1;35m┌────┬──────────────────────┬────┬─────┬──────────┬───┬──────────┬────────────────────┐\033[0m")
+            print("\033[1;35m│ \033[1;37m#  │ BSSID                 │ CH │ PWR │ ENC      │ CL│ VENDOR   │ SSID\033[1;35m               │\033[0m")
+            print("\033[1;35m├────┼──────────────────────┼────┼─────┼──────────┼───┼──────────┼────────────────────┤\033[0m")
+
+            for idx, (net_id, net_info) in enumerate(sorted_networks[:15], 1):
+                bssid      = net_info['bssid']
+                channel    = net_info['channel']
+                power      = net_info['power']
                 encryption = net_info['encryption']
-                essid = net_info['essid']
-                clients = net_info['clients']
-                
-                # Professional formatting
+                essid      = net_info['essid']
+                clients    = net_info['clients']
+                vendor     = net_info.get('vendor', '')
+
                 if "HIDDEN" in essid:
-                    display_name = f"\033[1;31m{essid:.20}\033[0m"
+                    display_name = f"\033[1;31m{'🚫 HIDDEN':18}\033[0m"
                 else:
-                    display_name = f"\033[1;37m{essid:.20}\033[0m"
-                
-                # Encryption styling
-                enc_icon = "🔓"
+                    display_name = f"\033[1;37m{essid[:18]:<18}\033[0m"
+
+                enc_icon  = "🔓"
                 enc_color = "\033[1;33m"
                 if "WPA2" in encryption:
-                    enc_icon = "🔒"
+                    enc_icon  = "🔒"
                     enc_color = "\033[1;31m"
                 elif "WPA" in encryption:
-                    enc_icon = "🔐" 
+                    enc_icon  = "🔐"
                     enc_color = "\033[1;35m"
                 elif "WEP" in encryption:
-                    enc_icon = "🗝️"
+                    enc_icon  = "🗝️"
                     enc_color = "\033[1;36m"
-                
-                enc_display = f"{enc_icon} {encryption.split()[0] if ' ' in encryption else encryption}"
-                
-                # Client indicator
-                client_icon = "👤" if clients == 1 else "👥" if clients > 1 else "👻"
-                
-                print(f"\033[1;35m│ \033[1;36m{idx:2d}\033[0m \033[1;32m{bssid}\033[0m \033[1;33m{channel:>3}\033[0m \033[1;31m{power:>3}\033[0m {enc_color}{enc_display:10}\033[0m {client_icon} {clients:>2}  {display_name:20} \033[1;35m│\033[0m")
-            
-            print("\033[1;35m└────┴──────────────────────┴────┴─────┴───────────┴──────┴──────────────────────────┘\033[0m")
-            
-            if len(sorted_networks) > 10:
-                print(f"\033[1;33m[📶] ... and {len(sorted_networks) - 10} more networks\033[0m")
+
+                enc_short   = encryption.split()[0] if ' ' in encryption else encryption
+                enc_display = f"{enc_icon}{enc_short[:6]}"
+                client_icon = "👤" if clients == 1 else "👥" if clients > 1 else "  "
+                vendor_str  = vendor[:8] if vendor else "Unknown "
+
+                print(f"\033[1;35m│ \033[1;36m{idx:2d}\033[0m \033[1;32m{bssid}\033[0m \033[1;33m{channel:>3}\033[0m \033[1;31m{power:>4}\033[0m {enc_color}{enc_display:<9}\033[0m{client_icon}{clients:>2} \033[1;34m{vendor_str:<9}\033[0m{display_name} \033[1;35m│\033[0m")
+
+            print("\033[1;35m└────┴──────────────────────┴────┴─────┴──────────┴───┴──────────┴────────────────────┘\033[0m")
+
+            if len(sorted_networks) > 15:
+                print(f"\033[1;33m[📶] ... and {len(sorted_networks) - 15} more networks\033[0m")
         
         print(f"\033[1;36m[🔍] Professional scanning active...\033[0m")
 
@@ -306,9 +334,25 @@ class NetworkScanner:
         if not self.networks:
             print("\033[1;31m[✘] No networks captured\033[0m")
             return False
-        
+
         print(f"\033[1;32m[✅] Professional scan complete: {len(self.networks)} targets\033[0m")
+        self._export_scan_json()
         return True
+
+    def _export_scan_json(self):
+        """Auto-save scan results to JSON for later analysis."""
+        try:
+            out = "/tmp/ns_last_scan.json"
+            data = {
+                "scan_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "total": len(self.networks),
+                "networks": list(self.networks.values()),
+            }
+            with open(out, 'w') as f:
+                json.dump(data, f, indent=2)
+            print(f"\033[1;34m[💾] Scan saved → {out}\033[0m")
+        except Exception:
+            pass
 
     def parse_final_professional_scan(self, csv_file):
         """Final professional scan parsing with robust CSV handling"""
@@ -355,7 +399,8 @@ class NetworkScanner:
                         'power': power,
                         'encryption': encryption,
                         'essid': essid,
-                        'clients': self.get_client_count(bssid)
+                        'clients': self.get_client_count(bssid),
+                        'vendor': self._get_vendor(bssid),
                     }
                 except Exception:
                     continue
@@ -368,9 +413,14 @@ class NetworkScanner:
 
     def is_valid_bssid(self, bssid):
         """Validate BSSID format"""
-        return (len(bssid) == 17 and 
-                bssid.count(':') == 5 and 
+        return (len(bssid) == 17 and
+                bssid.count(':') == 5 and
                 bssid != '00:00:00:00:00:00')
+
+    def _get_vendor(self, bssid):
+        """Look up vendor from OUI database."""
+        prefix = bssid.upper()[:8]
+        return OUI_DB.get(prefix, "")
 
     def display_scan_results(self):
         """Display professional scan results"""
@@ -393,43 +443,45 @@ class NetworkScanner:
         print(f"\033[1;32m[✅] NETWORKS: {len(sorted_networks)} | CLIENTS: {len(self.clients)}\033[0m")
         print()
         
-        print("\033[1;35m┌────┬──────────────────────┬────┬─────┬───────────┬──────┬──────────────────────────┐\033[0m")
-        print("\033[1;35m│ \033[1;37m#  │ MAC Address           │ CH │ PWR │ ENCRYPTION │ CLIS │ NETWORK NAME\033[1;35m             │\033[0m")
-        print("\033[1;35m├────┼──────────────────────┼────┼─────┼───────────┼──────┼──────────────────────────┤\033[0m")
-        
+        print("\033[1;35m┌────┬──────────────────────┬────┬─────┬──────────┬───┬──────────┬────────────────────┐\033[0m")
+        print("\033[1;35m│ \033[1;37m#  │ BSSID                 │ CH │ PWR │ ENC      │ CL│ VENDOR   │ SSID\033[1;35m               │\033[0m")
+        print("\033[1;35m├────┼──────────────────────┼────┼─────┼──────────┼───┼──────────┼────────────────────┤\033[0m")
+
         for idx, (net_id, net_info) in enumerate(sorted_networks, 1):
-            bssid = net_info['bssid']
-            channel = net_info['channel']
-            power = net_info['power']
+            bssid      = net_info['bssid']
+            channel    = net_info['channel']
+            power      = net_info['power']
             encryption = net_info['encryption']
-            essid = net_info['essid']
-            clients = net_info['clients']
-            
+            essid      = net_info['essid']
+            clients    = net_info['clients']
+            vendor     = net_info.get('vendor', '')
+
             if "HIDDEN" in essid:
-                display_name = f"\033[1;31m🚫 {essid:.18}\033[0m"
+                display_name = f"\033[1;31m{'🚫 HIDDEN':18}\033[0m"
             else:
-                display_name = f"\033[1;37m🎯 {essid:.18}\033[0m"
-            
-            enc_icon = "🔓"
+                display_name = f"\033[1;37m{essid[:18]:<18}\033[0m"
+
+            enc_icon  = "🔓"
             enc_color = "\033[1;33m"
             if "WPA2" in encryption:
-                enc_icon = "🔒"
+                enc_icon  = "🔒"
                 enc_color = "\033[1;31m"
             elif "WPA" in encryption:
-                enc_icon = "🔐"
+                enc_icon  = "🔐"
                 enc_color = "\033[1;35m"
             elif "WEP" in encryption:
-                enc_icon = "🗝️"
+                enc_icon  = "🗝️"
                 enc_color = "\033[1;36m"
-            
-            enc_display = f"{enc_icon} {encryption.split()[0] if ' ' in encryption else encryption}"
-            
-            client_icon = "👤" if clients == 1 else "👥" if clients > 1 else "👻"
-            
-            print(f"\033[1;35m│ \033[1;36m{idx:2d}\033[0m \033[1;32m{bssid}\033[0m \033[1;33m{channel:>3}\033[0m \033[1;31m{power:>3}\033[0m {enc_color}{enc_display:10}\033[0m {client_icon} {clients:>2}  {display_name:20} \033[1;35m│\033[0m")
-        
-        print("\033[1;35m└────┴──────────────────────┴────┴─────┴───────────┴──────┴──────────────────────────┘\033[0m")
-        print("\033[1;32m[✅] Professional target acquisition complete\033[0m")
+
+            enc_short   = encryption.split()[0] if ' ' in encryption else encryption
+            enc_display = f"{enc_icon}{enc_short[:6]}"
+            client_icon = "👤" if clients == 1 else "👥" if clients > 1 else "  "
+            vendor_str  = vendor[:8] if vendor else "Unknown "
+
+            print(f"\033[1;35m│ \033[1;36m{idx:2d}\033[0m \033[1;32m{bssid}\033[0m \033[1;33m{channel:>3}\033[0m \033[1;31m{power:>4}\033[0m {enc_color}{enc_display:<9}\033[0m{client_icon}{clients:>2} \033[1;34m{vendor_str:<9}\033[0m{display_name} \033[1;35m│\033[0m")
+
+        print("\033[1;35m└────┴──────────────────────┴────┴─────┴──────────┴───┴──────────┴────────────────────┘\033[0m")
+        print("\033[1;32m[✅] Target acquisition complete — %d networks\033[0m" % len(sorted_networks))
 
     def select_target(self):
         """Professional target selection"""

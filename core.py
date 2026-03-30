@@ -110,24 +110,72 @@ class NetStrikeCore:
                         interfaces.append(iface)
         return interfaces
 
+    def _get_iface_info(self, iface):
+        """Return (mode, driver, chipset_hint) for display."""
+        mode = "Managed"
+        r = self.run_command(f"iwconfig {iface} 2>/dev/null")
+        if r and "Mode:Monitor" in r.stdout:
+            mode = "Monitor"
+
+        driver = ""
+        r2 = self.run_command(f"ethtool -i {iface} 2>/dev/null | grep driver")
+        if r2 and r2.stdout.strip():
+            driver = r2.stdout.strip().split(":")[-1].strip()
+        if not driver:
+            r3 = self.run_command(f"readlink /sys/class/net/{iface}/device/driver 2>/dev/null")
+            if r3 and r3.stdout.strip():
+                driver = r3.stdout.strip().split("/")[-1]
+
+        chipset = ""
+        r4 = self.run_command(f"iw {iface} info 2>/dev/null | grep -i wiphy")
+        if r4 and r4.stdout.strip():
+            phy = r4.stdout.strip().split()[-1]
+            r5 = self.run_command(f"iw {phy} info 2>/dev/null | grep -i 'Band\\|Wiphy'")
+            if r5 and "Band" in r5.stdout:
+                if "5 GHz" in r5.stdout or "Band 2" in r5.stdout:
+                    chipset = "2.4/5GHz"
+                else:
+                    chipset = "2.4GHz"
+
+        return mode, driver, chipset
+
     def select_interface(self):
+        print("\033[1;36m[🔍] Scanning for wireless adapters...\033[0m")
         interfaces = self.detect_wireless_interfaces()
         if not interfaces:
             print("\033[1;31m[✘] No wireless interfaces found\033[0m")
+            print("\033[1;33m[!] Plug in a WiFi adapter and try again\033[0m")
             return False
 
-        print("\033[1;35m┌────────────────────────────────────────┐\033[0m")
-        print("\033[1;35m│  WIRELESS INTERFACES                   │\033[0m")
-        print("\033[1;35m├────────────────────────────────────────┤\033[0m")
-        for i, iface in enumerate(interfaces, 1):
-            r = self.run_command(f"iwconfig {iface} 2>/dev/null | grep 'Mode:'")
-            mode = "Monitor" if r and "Monitor" in r.stdout else "Managed"
-            pad = 24 - len(iface) - len(mode)
-            print(f"\033[1;35m│  \033[1;36m{i}\033[0m) \033[1;32m{iface}\033[0m - \033[1;33m{mode}\033[0m{' ' * max(pad, 1)}\033[1;35m│\033[0m")
-        print("\033[1;35m└────────────────────────────────────────┘\033[0m")
+        # Build info for all interfaces
+        iface_data = []
+        for iface in interfaces:
+            mode, driver, chipset = self._get_iface_info(iface)
+            iface_data.append((iface, mode, driver, chipset))
+
+        print()
+        print("\033[1;35m╔══════════════════════════════════════════════════╗\033[0m")
+        print("\033[1;35m║         📡  WIRELESS ADAPTERS DETECTED           ║\033[0m")
+        print("\033[1;35m╠══════════════════════════════════════════════════╣\033[0m")
+        for i, (iface, mode, driver, chipset) in enumerate(iface_data, 1):
+            mode_color = "\033[1;32m" if mode == "Monitor" else "\033[1;33m"
+            info_parts = []
+            if driver:
+                info_parts.append(driver)
+            if chipset:
+                info_parts.append(chipset)
+            info_str = " | ".join(info_parts) if info_parts else ""
+            print(f"\033[1;35m║  \033[1;36m{i}\033[0m) \033[1;32m{iface:<12}\033[0m {mode_color}{mode:<8}\033[0m \033[1;37m{info_str:<22}\033[0m\033[1;35m║\033[0m")
+        print("\033[1;35m╚══════════════════════════════════════════════════╝\033[0m")
+
+        # Auto-select if only one interface
+        if len(interfaces) == 1:
+            self.interface = interfaces[0]
+            print(f"\033[1;32m[✓] Auto-selected: {self.interface} (only adapter found)\033[0m")
+            return True
 
         try:
-            idx = int(input(f"\n\033[1;36m[?] Select (1-{len(interfaces)}): \033[0m")) - 1
+            idx = int(input(f"\n\033[1;36m[?] Select adapter (1-{len(interfaces)}): \033[0m")) - 1
             if 0 <= idx < len(interfaces):
                 self.interface = interfaces[idx]
                 print(f"\033[1;32m[✓] Selected: {self.interface}\033[0m")
@@ -188,10 +236,31 @@ class NetStrikeCore:
         r = self.run_command(f"iwconfig {self.mon_interface} 2>/dev/null")
         if r and "Mode:Monitor" in r.stdout:
             print(f"\033[1;32m[✓] Monitor mode active: {self.mon_interface}\033[0m")
+            self._boost_txpower()
             return True
 
         print("\033[1;31m[✘] Monitor mode verification failed\033[0m")
         return False
+
+    def _boost_txpower(self):
+        """Max out TX power for strongest signal reach."""
+        # Try regulatory domain trick first
+        self.run_command("iw reg set BO 2>/dev/null")
+        time.sleep(0.5)
+        # Boost via iw
+        r = self.run_command(
+            f"iw dev {self.mon_interface} set txpower fixed 3000 2>/dev/null"
+        )
+        if not (r and r.returncode == 0):
+            # Fallback: iwconfig
+            self.run_command(
+                f"iwconfig {self.mon_interface} txpower 30 2>/dev/null"
+            )
+        # Also set on physical interface
+        self.run_command(
+            f"iw dev {self.interface} set txpower fixed 3000 2>/dev/null"
+        )
+        print("\033[1;32m[✓] TX power maximized\033[0m")
 
     def stop_monitor_mode(self):
         if self.mon_interface:
@@ -211,7 +280,6 @@ class NetStrikeCore:
         print("\033[1;32m[✓] Anonymity layer active (MAC rotation every 3 min)\033[0m")
 
     def _mac_spoof_loop(self):
-        count = 0
         while self.spoofing_active:
             time.sleep(180)
             if not self.spoofing_active:
@@ -220,7 +288,8 @@ class NetStrikeCore:
                 self.run_command(f"ip link set {self.mon_interface} down 2>/dev/null")
                 self.run_command(f"macchanger -r {self.mon_interface} > /dev/null 2>&1")
                 self.run_command(f"ip link set {self.mon_interface} up 2>/dev/null")
-                count += 1
+                # Re-boost TX power after interface restart
+                self.run_command(f"iw dev {self.mon_interface} set txpower fixed 3000 2>/dev/null")
             except Exception:
                 pass
 
